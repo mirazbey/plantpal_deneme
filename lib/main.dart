@@ -1,26 +1,47 @@
-import 'package:plantpal/theme/app_theme.dart';
+// lib/main.dart (DOĞRU İZİN İSTEME MANTIĞI)
+
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:plantpal/main_screen_shell.dart'; // YENİ YOL
-import 'package:plantpal/services/notification_service.dart'; // Bu satırda da hata olacak
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // YENİ İMPORT
+import 'package:plantpal/main_screen_shell.dart';
+import 'package:plantpal/services/notification_service.dart';
+import 'package:plantpal/theme/app_theme.dart';
 
-void main() async {
-  // Uygulama başlamadan önce bazı ayarların hazır olmasını sağlıyoruz.
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await NotificationService().initialize();
 
-  runApp(const PlantPalApp());
+  // Bildirim servisini başlat
+  await NotificationService().initialize();
+  
+  // YENİ VE DOĞRU İZİN İSTEME KODU
+  // Sadece Android platformunda çalışacak
+  if (Platform.isAndroid) {
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        FlutterLocalNotificationsPlugin().resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    
+    final bool? granted = await androidImplementation?.requestNotificationsPermission();
+
+    // Konsola geri bildirim yazdır
+    if (kDebugMode) {
+      print("Bildirim izni istendi. Kullanıcı onayı: $granted");
+    }
+  }
+
+  runApp(const MyApp());
 }
 
-class PlantPalApp extends StatelessWidget {
-  const PlantPalApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'PlantPal',
-      theme: AppTheme.lightTheme,
-      home: const MainScreenShell(), // Bu satırda da hata olacak
       debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      home: const MainScreenShell(),
     );
   }
 }

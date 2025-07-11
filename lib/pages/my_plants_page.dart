@@ -1,11 +1,58 @@
+// lib/pages/my_plants_page.dart (GÜNCELLENMİŞ HALİ)
+
 import 'package:flutter/material.dart';
 import 'package:plantpal/models/plant_record.dart';
-import 'package:plantpal/pages/plant_detail_page.dart'; // Yeni detay sayfamızı import ediyoruz
+import 'package:plantpal/pages/plant_detail_page.dart';
+import 'package:plantpal/services/database_service.dart'; // VERİTABANI SERVİSİ
 
-class MyPlantsPage extends StatelessWidget {
+class MyPlantsPage extends StatefulWidget {
   final List<PlantRecord> plantHistory;
+  final VoidCallback onPlantsUpdated; // Geri çağırma fonksiyonu
 
-  const MyPlantsPage({super.key, required this.plantHistory});
+  const MyPlantsPage({
+    super.key, 
+    required this.plantHistory,
+    required this.onPlantsUpdated, // Yapıcıya ekledik
+  });
+
+  @override
+  State<MyPlantsPage> createState() => _MyPlantsPageState();
+}
+
+class _MyPlantsPageState extends State<MyPlantsPage> {
+
+  // Bitkiyi silme fonksiyonu
+  Future<void> _deletePlant(String id) async {
+    // Önce bir onay alalım
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Bitkiyi Sil'),
+          content: const Text('Bu bitkiyi koleksiyonunuzdan kalıcı olarak silmek istediğinize emin misiniz?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('İptal'),
+              onPressed: () => Navigator.of(context).pop(false), // Silme
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Sil'),
+              onPressed: () => Navigator.of(context).pop(true), // Sil
+            ),
+          ],
+        );
+      },
+    );
+
+    // Eğer kullanıcı 'Sil' dediyse
+    if (shouldDelete == true) {
+      await DatabaseService.instance.deletePlant(id);
+      // Silme işleminden sonra ana shell'deki listeyi yenilemek için
+      // geri çağırma fonksiyonunu tetikle
+      widget.onPlantsUpdated(); 
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +60,7 @@ class MyPlantsPage extends StatelessWidget {
       appBar: AppBar(
         title: Text('Bitkilerim', style: Theme.of(context).appBarTheme.titleTextStyle),
       ),
-      body: plantHistory.isEmpty
+      body: widget.plantHistory.isEmpty
           ? const Center(
               child: Text('Henüz hiç bitki kaydetmediniz.'),
             )
@@ -25,12 +72,12 @@ class MyPlantsPage extends StatelessWidget {
                 mainAxisSpacing: 16,
                 childAspectRatio: 0.8,
               ),
-              itemCount: plantHistory.length,
+              itemCount: widget.plantHistory.length,
               itemBuilder: (context, index) {
-                final record = plantHistory[index];
+                final record = widget.plantHistory[index];
 
-                // Kartları tıklanabilir yapıyoruz
                 return InkWell(
+                  // KARTI TIKLANABİLİR YAPIYORUZ
                   onTap: () {
                     Navigator.push(
                       context,
@@ -38,6 +85,10 @@ class MyPlantsPage extends StatelessWidget {
                         builder: (context) => PlantDetailPage(record: record),
                       ),
                     );
+                  },
+                  // UZUN BASMAYI ALGILAMA
+                  onLongPress: () {
+                    _deletePlant(record.id);
                   },
                   child: Card(
                     elevation: 4,
@@ -52,7 +103,7 @@ class MyPlantsPage extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Text(
-                            record.nickname, // Artık takma adı gösteriyoruz
+                            record.nickname,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                             textAlign: TextAlign.center,
                             maxLines: 1,

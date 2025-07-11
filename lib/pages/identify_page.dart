@@ -173,6 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 40.0),
                 child: Text(widget.plantInfo, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Colors.grey)),
               ),
+              const SizedBox(height: 80),
           ],
         ),
       ),

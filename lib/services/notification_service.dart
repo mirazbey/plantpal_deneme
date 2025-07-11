@@ -1,3 +1,6 @@
+// lib/services/notification_service.dart (NİHAİ VE DOĞRU HALİ)
+
+import 'dart:io'; // Platform kontrolü için
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -5,30 +8,43 @@ import 'package:flutter/material.dart';
 
 class NotificationService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() {
+    return _instance;
+  }
+  NotificationService._internal();
 
   Future<void> initialize() async {
-    // Android için başlangıç ayarları. @mipmap/ic_launcher, uygulamanın standart ikonudur.
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
 
-    // Zaman dilimlerini kullanıma hazırlıyoruz.
     tz.initializeTimeZones();
     await _notificationsPlugin.initialize(initializationSettings);
   }
 
-  // Haftalık tekrarlayan bildirim kuran fonksiyon
+  // YENİ: ANDROID İÇİN İZİN İSTEME FONKSİYONU
+  Future<void> requestAndroidPermission() async {
+    if (Platform.isAndroid) {
+      await _notificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    }
+  }
+
   Future<void> scheduleWeeklyNotification({
+    required int id,
     required String plantName,
-    required int day, // 1: Pazartesi, 7: Pazar
+    required int day,
     required TimeOfDay time,
   }) async {
     await _notificationsPlugin.zonedSchedule(
-      0, // Her bildirim için benzersiz bir ID gerekir, prototip için 0 yeterli.
+      id,
       'Sulama Zamanı!',
-      '$plantName bitkini sulamayı unutma!',
+      '"$plantName" adlı bitkini sulamayı unutma!',
       _nextInstanceOf(day, time),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -46,7 +62,6 @@ class NotificationService {
     );
   }
 
-  // Belirtilen gün ve saat için bir sonraki tarihi hesaplayan yardımcı fonksiyon
   tz.TZDateTime _nextInstanceOf(int day, TimeOfDay time) {
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate =
@@ -55,11 +70,13 @@ class NotificationService {
     while (scheduledDate.weekday != day) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
-    // Eğer hesaplanan tarih geçmişte kaldıysa, bir sonraki haftaya atla
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 7));
     }
     return scheduledDate;
   }
+  
+  Future<void> cancelNotification(int id) async {
+    await _notificationsPlugin.cancel(id);
+  }
 }
-
