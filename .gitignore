@@ -1,0 +1,37 @@
+# Miscellaneous
+*.class
+*.lock
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# Flutter/Dart
+.dart_tool/
+.packages
+/build/
+/ios/Flutter/App.framework
+/ios/Flutter/Flutter.framework
+/ios/Flutter/engine
+/ios/Flutter/flutter_assets
+/ios/Pods/
+/ios/Runner.xcworkspace
+/ios/ipa/
+/ios/.symlinks/
+/ios/Flutter/Generated.xcconfig
+/android/app/src/main/assets/flutter_assets
+/android/key.properties
+/android/local.properties
+/android/.gradle
+/android/app/build
+/android/gradle.properties
+# Pub
+/pubspec.lock
+
+# IDE
+.idea/
+*.iml
