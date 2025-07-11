@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "plantpal",
+            "request": "launch",
+            "type": "dart",
+            // YENİ EKLENEN SATIR BURASI
+            "args": ["--dart-define-from-file=config.json"]
+        },
+        {
+            "name": "plantpal (profile mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "plantpal (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}

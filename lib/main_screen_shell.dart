@@ -1,18 +1,18 @@
+// lib/main_screen_shell.dart (TAM VE DÜZELTİLMİŞ HALİ)
+
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart'; // Bu import hatası artık düzelmeli
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:plantpal/models/plant_prediction.dart';
 import 'package:plantpal/models/plant_record.dart';
 import 'package:plantpal/pages/identify_page.dart';
 import 'package:plantpal/pages/my_plants_page.dart';
+import 'package:plantpal/services/database_service.dart';
 import 'package:plantpal/services/gemini_service.dart';
-import 'package:plantpal/services/location_service.dart';
+import 'package:plantpal/services/location_service.dart'; // DOĞRU YAZIM
 import 'package:plantpal/services/weather_service.dart';
 
-// ... (Geri kalan tüm kod aynı kalabilir, ana sorun importlardaydı)
-// Önceki mesajda verdiğim tam kod doğruydu, sorun sadece bu dosyanın
-// geolocator paketini görememesiydi.
 class MainScreenShell extends StatefulWidget {
   const MainScreenShell({super.key});
 
@@ -27,54 +27,66 @@ class _MainScreenShellState extends State<MainScreenShell> {
   File? _selectedImage;
   String _plantInfo = "Tanımlama için alttaki menüden Kamera veya Galeri seçin.";
   bool _isLoading = false;
-  final List<PlantRecord> _plantHistory = [];
+  
+  List<PlantRecord> _plantHistory = []; 
+  
   List<PlantPrediction> _predictions = [];
   int _selectedPredictionIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await _refreshPlants(); 
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) setState(() => _showSplash = false);
     });
   }
 
-// main_screen_shell.dart içindeki fonksiyonun yeni hali
-List<PlantPrediction> _parsePredictions(String rawText) {
-  final List<PlantPrediction> predictions = [];
-  final parts = rawText.split(RegExp(r'---TAHMİN \d+---'));
+  Future<void> _refreshPlants() async {
+    final plants = await DatabaseService.instance.getAllPlants();
+    setState(() {
+      _plantHistory = plants;
+    });
+  }
+  
+  List<PlantPrediction> _parsePredictions(String rawText) {
+    final List<PlantPrediction> predictions = [];
+    final parts = rawText.split(RegExp(r'---TAHMİN \d+---'));
 
-  for (var part in parts) {
-    if (part.trim().isEmpty) continue;
+    for (var part in parts) {
+      if (part.trim().isEmpty) continue;
 
-    String percentage = '', name = '', health = '', watering = '', advice = '', light = '', treatment = ''; // treatment değişkenini ekledik
-    final lines = part.split('\n');
-    for (var line in lines) {
-      final keyValuePair = line.split(':');
-      if (keyValuePair.length < 2) continue;
-      final key = keyValuePair[0].replaceAll('**', '').trim();
-      final value = keyValuePair.sublist(1).join(':').trim().replaceAll('**', '');
-      switch (key) {
-        case 'Tahmin Yüzdesi': percentage = value; break;
-        case 'Bitki Adı': name = value; break;
-        case 'Sağlık Durumu': health = value; break;
-        case 'Tedavi Önerisi': treatment = value; break; // Yeni bilgiyi okuyoruz
-        case 'Sulama Sıklığı': watering = value; break;
-        case 'Günün Tavsiyesi': advice = value; break;
-        case 'Işık İhtiyacı': light = value; break;
+      String percentage = '', name = '', health = '', watering = '', advice = '', light = '', treatment = '';
+      final lines = part.split('\n');
+      for (var line in lines) {
+        final keyValuePair = line.split(':');
+        if (keyValuePair.length < 2) continue;
+        final key = keyValuePair[0].replaceAll('**', '').trim();
+        final value = keyValuePair.sublist(1).join(':').trim().replaceAll('**', '');
+        switch (key) {
+          case 'Tahmin Yüzdesi': percentage = value; break;
+          case 'Bitki Adı': name = value; break;
+          case 'Sağlık Durumu': health = value; break;
+          case 'Tedavi Önerisi': treatment = value; break;
+          case 'Sulama Sıklığı': watering = value; break;
+          case 'Günün Tavsiyesi': advice = value; break;
+          case 'Işık İhtiyacı': light = value; break;
+        }
+      }
+      if (name.isNotEmpty) {
+        predictions.add(PlantPrediction(
+          percentage: percentage, name: name, health: health,
+          watering: watering, advice: advice, light: light,
+          treatment: treatment,
+        ));
       }
     }
-    if (name.isNotEmpty) {
-      predictions.add(PlantPrediction(
-        percentage: percentage, name: name, health: health,
-        watering: watering, advice: advice, light: light,
-        treatment: treatment, // Yeni bilgiyi modele ekliyoruz
-      ));
-    }
+    return predictions;
   }
-  return predictions;
-}
-
 
   Future<void> _pickImageAndIdentify(ImageSource source) async {
     setState(() => _selectedIndex = 1);
@@ -87,7 +99,7 @@ List<PlantPrediction> _parsePredictions(String rawText) {
         _selectedImage = File(pickedFile.path);
         _isLoading = true;
         _plantInfo = "Konum alınıyor...";
-        _predictions = []; // Önceki tahminleri temizle
+        _predictions = [];
       });
 
       final locationService = LocationService();
@@ -105,15 +117,12 @@ List<PlantPrediction> _parsePredictions(String rawText) {
       }
       setState(() => _plantInfo = "Bitki tanınıyor, lütfen bekleyin...");
       final result = await GeminiService.getPlantInfo(_selectedImage!, weatherString);
-      // ignore: avoid_print
-      print("--- GEMINI'DEN GELEN HAM CEVAP ---\n$result\n---------------------------------");
+      
       if (result != null && result.contains('---TAHMİN')) {
         final predictions = _parsePredictions(result);
-        // ignore: avoid_print
-        print("--- PARÇALANMIŞ TAHMİN SAYISI: ${predictions.length} ---");
         if (predictions.isNotEmpty) {        
           setState(() {
-            _plantInfo = result; // Arayüzde tüm tahminleri göstermek için ham metni sakla
+            _plantInfo = result;
             _predictions = predictions;
             _selectedPredictionIndex = 0;
             _isLoading = false;
@@ -129,96 +138,90 @@ List<PlantPrediction> _parsePredictions(String rawText) {
       }
     }
   }
-  // Yeni eklenen diyalog fonksiyonu
-Future<void> _showSavePlantDialog({required File image, required Map<String, String> plantInfo}) async {
-  final nicknameController = TextEditingController();
-  // Gerçek bir uygulamada bu etiketler dinamik olabilir, şimdilik sabit
-  final List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever'];
-  final List<String> selectedTags = [];
 
-  return showDialog<void>(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Bitkinizi Kaydedin'),
-        content: SingleChildScrollView(
-          child: StatefulBuilder( // Diyalog içindeki durumu güncellemek için
-            builder: (BuildContext context, StateSetter setState) {
-              return ListBody(
-                children: <Widget>[
-                  Text('"${plantInfo['Bitki Adı']}" için bir takma ad belirleyin:'),
-                  TextField(
-                    controller: nicknameController,
-                    decoration: const InputDecoration(hintText: 'Örn: Yeşil Dostum'),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('Etiketler seçin:'),
-                  Wrap(
-                    spacing: 8.0,
-                    children: availableTags.map((tag) {
-                      return FilterChip(
-                        label: Text(tag),
-                        selected: selectedTags.contains(tag),
-                        onSelected: (bool selected) {
-                          setState(() { // Diyalogun içini yenile
-                            if (selected) {
-                              selectedTags.add(tag);
-                            } else {
-                              selectedTags.remove(tag);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('İptal'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          TextButton(
-            child: const Text('Kaydet'),
-            onPressed: () {
-              final newRecord = PlantRecord(
-                image: image,
-                plantInfo: plantInfo,
-                date: DateTime.now(),
-                nickname: nicknameController.text.isNotEmpty
-                    ? nicknameController.text
-                    : plantInfo['Bitki Adı']!,
-                tags: selectedTags,
-              );
-              _addPlantToHistory(newRecord); // Ana listeye ekle
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
+  Future<void> _showSavePlantDialog({required File image, required Map<String, String> plantInfo}) async {
+    final nicknameController = TextEditingController();
+    final List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever'];
+    final List<String> selectedTags = [];
 
-// YENİ EKLENECEK FONKSİYON
-void _addPlantToHistory(PlantRecord record) {
-  setState(() {
-    _plantHistory.insert(0, record);
-  });
-}
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Bitkinizi Kaydedin'),
+          content: SingleChildScrollView(
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState) {
+                return ListBody(
+                  children: <Widget>[
+                    Text('"${plantInfo['Bitki Adı']}" için bir takma ad belirleyin:'),
+                    TextField(
+                      controller: nicknameController,
+                      decoration: const InputDecoration(hintText: 'Örn: Yeşil Dostum'),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Etiketler seçin:'),
+                    Wrap(
+                      spacing: 8.0,
+                      children: availableTags.map((tag) {
+                        return FilterChip(
+                          label: Text(tag),
+                          selected: selectedTags.contains(tag),
+                          onSelected: (bool selected) {
+                            setState(() {
+                              if (selected) {
+                                selectedTags.add(tag);
+                              } else {
+                                selectedTags.remove(tag);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('İptal'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Kaydet'),
+              onPressed: () {
+                final newRecord = PlantRecord(
+                  image: image,
+                  plantInfo: plantInfo,
+                  date: DateTime.now(),
+                  nickname: nicknameController.text.isNotEmpty
+                      ? nicknameController.text
+                      : plantInfo['Bitki Adı']!,
+                  tags: selectedTags,
+                );
+                _addPlantToHistory(newRecord); 
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _addPlantToHistory(PlantRecord record) async {
+    await DatabaseService.instance.insertPlant(record);
+    _refreshPlants();
+  }
 
   void _onItemTapped(int index) {
-    if (index == 0) {
-      // Kamera
+    if (index == 0) { // Kamera
       _pickImageAndIdentify(ImageSource.camera);
-    } else if (index == 1) {
-      // Galeri
+    } else if (index == 1) { // Galeri
       _pickImageAndIdentify(ImageSource.gallery);
-    } else if (index == 2) {
-      // Bitkilerim
+    } else { // Bitkilerim
       setState(() => _selectedIndex = index);
     }
   }
@@ -231,26 +234,24 @@ void _addPlantToHistory(PlantRecord record) {
           body: Center(child: Image.asset('assets/images/logo.png')));
     }
 
-          // GÜNCELLENMESİ GEREKEN LİSTE
-      final List<Widget> widgetOptions = <Widget>[
-        // Kamera ve Galeri için aynı sayfayı kullanıyoruz ve ona GEREKLİ TÜM bilgileri veriyoruz.
-        HomeScreen(
-          selectedImage: _selectedImage,
-          plantInfo: _plantInfo,
-          isLoading: _isLoading,
-          predictions: _predictions,
-          selectedPredictionIndex: _selectedPredictionIndex,
-          onPredictionSelected: (index) => setState(() => _selectedPredictionIndex = index),
-          // YENİ EKLENEN FONKSİYONLAR
-          onClear: () => setState(() {
-            _selectedImage = null;
-            _predictions = [];
-            _plantInfo = "Tanımlama için alttaki menüden Kamera veya Galeri seçin.";
-          }),
-          onSave: () {
-          if (_predictions.isNotEmpty) {
+    // Ana Ekran ve Bitkilerim sayfası için widget'ları tanımla
+    final List<Widget> pageOptions = [
+      MyPlantsPage(plantHistory: _plantHistory), // Index 0
+      HomeScreen( // Index 1
+        selectedImage: _selectedImage,
+        plantInfo: _plantInfo,
+        isLoading: _isLoading,
+        predictions: _predictions,
+        selectedPredictionIndex: _selectedPredictionIndex,
+        onPredictionSelected: (index) => setState(() => _selectedPredictionIndex = index),
+        onClear: () => setState(() {
+          _selectedImage = null;
+          _predictions = [];
+          _plantInfo = "Tanımlama için alttaki menüden Kamera veya Galeri seçin.";
+        }),
+        onSave: () {
+          if (_predictions.isNotEmpty && _selectedImage != null) {
             final bestPrediction = _predictions[_selectedPredictionIndex];
-            // Gereksiz değişkeni kaldırıp, bilgiyi doğrudan fonksiyona gönderiyoruz
             _showSavePlantDialog(
               image: _selectedImage!,
               plantInfo: {
@@ -263,55 +264,31 @@ void _addPlantToHistory(PlantRecord record) {
             );
           }
         },
-        ),
-        // Diğer HomeScreen de aynı şekilde güncellenmeli
-        HomeScreen(
-          selectedImage: _selectedImage,
-          plantInfo: _plantInfo,
-          isLoading: _isLoading,
-          predictions: _predictions,
-          selectedPredictionIndex: _selectedPredictionIndex,
-          onPredictionSelected: (index) => setState(() => _selectedPredictionIndex = index),
-          onClear: () => setState(() {
-            _selectedImage = null;
-            _predictions = [];
-            _plantInfo = "Tanımlama için alttaki menüden Kamera veya Galeri seçin.";
-          }),
-                onSave: () {
-        if (_predictions.isNotEmpty) {
-          final bestPrediction = _predictions[_selectedPredictionIndex];
-          // Diyalog penceresine bilgiyi doğrudan gönderiyoruz
-          _showSavePlantDialog(
-            image: _selectedImage!,
-            plantInfo: {
-              'Bitki Adı': bestPrediction.name, 'Sağlık Durumu': bestPrediction.health,
-              'Sulama Sıklığı': bestPrediction.watering, 'Günün Tavsiyesi': bestPrediction.advice,
-              'Işık İhtiyacı': bestPrediction.light,
-            },
-          );
-        }
-      },
-        ),
-        MyPlantsPage(plantHistory: _plantHistory),
-      ];
+      ),
+    ];
+
+    // Hangi sayfanın gösterileceğini belirle
+    Widget currentPage;
+    if (_selectedIndex == 2) {
+      currentPage = pageOptions[0]; // Bitkilerim
+    } else {
+      currentPage = pageOptions[1]; // Tanımlama ekranı (Kamera veya Galeri için)
+    }
 
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: widgetOptions,
-      ),
+      body: currentPage,
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
               icon: Icon(Icons.photo_camera_rounded), label: 'Kamera'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.document_scanner_rounded), label: 'Galeri'),
+              icon: Icon(Icons.photo_library_rounded), label: 'Galeri'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_basket_rounded), label: 'Bitkilerim'),
+              icon: Icon(Icons.grass_rounded), label: 'Bitkilerim'),
         ],
-        currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).primaryColor,
-        onTap: _onItemTapped,
       ),
     );
   }

@@ -1,7 +1,0 @@
-// BURAYA GOOGLE AI STUDIO'DAN ALDIĞINIZ API ANAHTARINI YAPIŞTIRIN
-const String geminiApiKey = 'AIzaSyBBEwRzTL_aPSdS0MHFCLStJE7DL8pr4sI';
-const String openWeatherApiKey = 'fff0eb2f646f8c164a2bdbff2555296d'; // YENİ EKLENEN SATIR
-
-
-
-

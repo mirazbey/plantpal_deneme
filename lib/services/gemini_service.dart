@@ -1,21 +1,24 @@
 import 'dart:io';
 import 'package:google_generative_ai/google_generative_ai.dart';
-import 'package:plantpal/api_key.dart';
 
 class GeminiService {
-  // Fonksiyon artık hava durumu bilgisini de alıyor
   static Future<String?> getPlantInfo(File imageFile, String? weatherInfo) async {
     try {
-      final model = GenerativeModel(model: 'gemini-1.5-flash-latest', apiKey: geminiApiKey);
+      // API ANAHTARI ARTIK GÜVENLİ BİR ŞEKİLDE DIŞARIDAN ALINIYOR
+      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+      if (apiKey.isEmpty) {
+        throw Exception('GEMINI_API_KEY ortam değişkeni bulunamadı.');
+      }
 
-      // Hava durumu bilgisini komuta ekliyoruz
+      final model = GenerativeModel(model: 'gemini-1.5-flash-latest', apiKey: apiKey);
+
       final prompt = TextPart(
         "Bu bir bitki fotoğrafı. Bu bitki için en olası 3 tahmini, yüzdeleriyle birlikte, aşağıdaki formatta liste halinde ver. Her tahmin için sağlık durumu, sulama, günün tavsiyesi ve ışık ihtiyacı bilgilerini de ekle. Eğer sadece bir tahminden eminsen, sadece onu ver.\n\n"
         "---TAHMİN 1---\n"
         "**Tahmin Yüzdesi:** [Yüzde]\n"
         "**Bitki Adı:** [Bitkinin yaygın adı]\n"
         "**Sağlık Durumu:** [Hastalık veya 'Sağlıklı']\n"
-        "**Tedavi Önerisi:** [Eğer hastalıklıysa, basit bir tedavi önerisi. Sağlıklıysa 'Bakıma devam et' de.]\n" // YENİ EKLENEN SATIR
+        "**Tedavi Önerisi:** [Eğer hastalıklıysa, basit bir tedavi önerisi. Sağlıklıysa 'Bakıma devam et' de.]\n"
         "**Sulama Sıklığı:** [Açıklama]\n"
         "**Günün Tavsiyesi:** [Mevcut hava durumu olan '$weatherInfo' için bir tavsiye]\n"
         "**Işık İhtiyacı:** [Düşük, Orta, Yüksek]\n\n"
