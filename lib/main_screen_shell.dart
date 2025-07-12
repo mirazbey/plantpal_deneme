@@ -1,12 +1,10 @@
-// lib/main_screen_shell.dart (NİHAİ VE DOĞRU HALİ)
+// lib/main_screen_shell.dart (Adım 3 için doğru kod)
 
 import 'dart:io';
-import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:plantpal/alarm_callback.dart';
 import 'package:plantpal/models/plant_prediction.dart';
 import 'package:plantpal/models/plant_record.dart';
 import 'package:plantpal/pages/identify_page.dart';
@@ -18,6 +16,11 @@ import 'package:plantpal/services/location_service.dart';
 import 'package:plantpal/services/weather_service.dart';
 import 'package:plantpal/theme/app_theme.dart';
 
+// --- GEREKLİ IMPORT'LAR ---
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:plantpal/alarm_callback.dart';
+
+
 class MainScreenShell extends StatefulWidget {
   const MainScreenShell({super.key});
   @override
@@ -25,7 +28,6 @@ class MainScreenShell extends StatefulWidget {
 }
 
 class _MainScreenShellState extends State<MainScreenShell> {
-  // ... (Tüm state değişkenleriniz aynı) ...
   bool _showSplash = true;
   int _pageIndex = 1;
   File? _selectedImage;
@@ -35,8 +37,7 @@ class _MainScreenShellState extends State<MainScreenShell> {
   int _selectedPredictionIndex = 0;
   List<PlantRecord> _plantHistory = [];
 
-  // ... (Diğer tüm fonksiyonlarınız aynı kalıyor, sadece _scheduleAlarm değişiyor)
-    @override
+  @override
   void initState() {
     super.initState();
     _initializeApp();
@@ -52,8 +53,34 @@ class _MainScreenShellState extends State<MainScreenShell> {
     final plants = await DatabaseService.instance.getAllPlants();
     if (mounted) setState(() => _plantHistory = plants);
   }
-  
-    List<PlantPrediction> _parsePredictions(String rawText) {
+
+  Duration _parseWateringFrequency(String wateringText) {
+    int days = 3; 
+    try {
+      final RegExp regExp = RegExp(r'\d+');
+      final match = regExp.firstMatch(wateringText.toLowerCase());
+      
+      if (match != null) {
+        int? number = int.tryParse(match.group(0)!);
+        if (number != null) {
+          if (wateringText.contains('hafta')) {
+            days = number * 7;
+          } else {
+            days = number;
+          }
+        }
+      } else if (wateringText.contains('günübirlik') || wateringText.contains('her gün')) {
+        days = 1;
+      }
+    } catch (e) {
+      days = 3;
+    }
+    return Duration(days: days);
+    // TEST İÇİN DAKİKA KULLANABİLİRSİNİZ:
+    // return Duration(minutes: 1);
+  }
+
+  List<PlantPrediction> _parsePredictions(String rawText) {
     final List<PlantPrediction> predictions = [];
     final parts = rawText.split(RegExp(r'---TAHMİN \d+---'));
     for (var part in parts) {
@@ -81,30 +108,26 @@ class _MainScreenShellState extends State<MainScreenShell> {
     }
     return predictions;
   }
-  
+
   Future<void> _pickImageAndIdentify(ImageSource source) async {
-    setState(() => _pageIndex = 1); 
+    setState(() => _pageIndex = 1);
     _processImageIdentification(source);
   }
 
   Future<void> _processImageIdentification(ImageSource source) async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
-
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: source, imageQuality: 70);
-
     if (pickedFile == null) {
       setState(() => _isLoading = false);
       return;
     }
-
     setState(() {
       _selectedImage = File(pickedFile.path);
       _plantInfo = "Konum alınıyor...";
       _predictions = [];
     });
-    
     final locationService = LocationService();
     final Position? position = await locationService.getCurrentLocation();
     String? weatherString = "Hava durumu bilgisi alınamadı.";
@@ -118,12 +141,10 @@ class _MainScreenShellState extends State<MainScreenShell> {
         weatherString = "$description, $temp °C";
       }
     }
-
     if (!mounted) return;
     setState(() => _plantInfo = "Bitki tanınıyor, lütfen bekleyin...");
     final result = await GeminiService.getPlantInfo(_selectedImage!, weatherString);
     if (!mounted) return;
-    
     if (result != null && result.contains('---TAHMİN')) {
       final predictions = _parsePredictions(result);
       setState(() {
@@ -143,24 +164,26 @@ class _MainScreenShellState extends State<MainScreenShell> {
   Future<void> _onSaveButtonPressed() async {
     if (_predictions.isNotEmpty && _selectedImage != null) {
       final bestPrediction = _predictions[_selectedPredictionIndex];
-      
       final PlantRecord? newRecord = await _showSavePlantDialog(
         image: _selectedImage!,
         plantInfo: {
-          'Bitki Adı': bestPrediction.name, 'Sağlık Durumu': bestPrediction.health,
-          'Sulama Sıklığı': bestPrediction.watering, 'Günün Tavsiyesi': bestPrediction.advice,
+          'Bitki Adı': bestPrediction.name,
+          'Sağlık Durumu': bestPrediction.health,
+          'Sulama Sıklığı': bestPrediction.watering,
+          'Günün Tavsiyesi': bestPrediction.advice,
           'Işık İhtiyacı': bestPrediction.light,
         },
       );
-
       if (newRecord != null) {
-        await _addPlantToHistory(newRecord);
-         if (mounted) {
+        // ID'nin atanabilmesi için önce veritabanına ekliyoruz.
+        await _addPlantToHistory(newRecord); 
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('${newRecord.nickname} koleksiyona eklendi.'),
               action: SnackBarAction(
                 label: 'Hatırlatıcı Kur',
+                // Alarmı kurarken artık ID'si olan newRecord'u kullanıyoruz
                 onPressed: () => _scheduleAlarm(newRecord),
               ),
               duration: const Duration(seconds: 5),
@@ -170,12 +193,12 @@ class _MainScreenShellState extends State<MainScreenShell> {
       }
     }
   }
-  
-  Future<PlantRecord?> _showSavePlantDialog({required File image, required Map<String, String> plantInfo}) async {
-    final nicknameController = TextEditingController();
-    const List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever','Işık Sever','Nemli Toprak Sever'];
-    List<String> selectedTags = [];
 
+  Future<PlantRecord?> _showSavePlantDialog(
+      {required File image, required Map<String, String> plantInfo}) async {
+    final nicknameController = TextEditingController();
+    const List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever', 'Işık Sever', 'Nemli Toprak Sever'];
+    List<String> selectedTags = [];
     return showDialog<PlantRecord>(
       context: context,
       barrierDismissible: false,
@@ -236,25 +259,25 @@ class _MainScreenShellState extends State<MainScreenShell> {
     );
   }
   
-  // ALARM KURMA FONKSİYONU
   Future<void> _scheduleAlarm(PlantRecord record) async {
-    final alarmId = record.id.hashCode; // Her bitki için kendi ID'sini kullan
-    // ignore: avoid_print
-    print("Alarm kuruluyor... ID: $alarmId");
+    final wateringInfo = record.plantInfo['Sulama Sıklığı'] ?? '3 günde bir';
+    final Duration frequency = _parseWateringFrequency(wateringInfo);
+    
+    // Her bitkinin veritabanı ID'sini kullanarak benzersiz bir alarm ID'si oluşturuyoruz.
+    final alarmId = record.id.hashCode;
+
     await AndroidAlarmManager.oneShot(
-      const Duration(minutes: 1), // Test için 1 dakika sonrasına
+      frequency,
       alarmId,
       fireAlarm,
       exact: true,
       wakeup: true,
       rescheduleOnReboot: true,
     );
-    // ignore: avoid_print
-    print("Alarm kuruldu.");
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Hatırlatıcı kuruldu! 1 dakika içinde test bildirimi gelecek.')),
+        SnackBar(content: Text('${record.nickname} için ${frequency.inDays} gün sonrasına hatırlatıcı kuruldu!')),
       );
     }
   }
@@ -263,13 +286,12 @@ class _MainScreenShellState extends State<MainScreenShell> {
     await DatabaseService.instance.insertPlant(record);
     await _refreshPlants();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (_showSplash) {
       return Scaffold(backgroundColor: Colors.white, body: Center(child: Image.asset('assets/images/logo.png')));
     }
-
     final pages = [
       MyPlantsPage(plantHistory: _plantHistory, onPlantsUpdated: _refreshPlants),
       HomeScreen(
@@ -284,14 +306,9 @@ class _MainScreenShellState extends State<MainScreenShell> {
           _plantInfo = "Tanımam için bana bir bitki göster!";
         }),
         onSave: _onSaveButtonPressed,
-        onScheduleReminder: () { // Bu artık kullanılmıyor ama widget beklediği için boş olarak duruyor
-          if (_predictions.isNotEmpty) {
-             _scheduleAlarm(_plantHistory.first); // Örnek olarak ilk bitki için
-          }
-        },
+        onScheduleReminder: () {}, // Bu artık kullanılmıyor
       ),
     ];
-
     return Scaffold(
       extendBody: true,
       appBar: AppBar(

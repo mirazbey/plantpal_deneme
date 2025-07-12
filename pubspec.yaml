@@ -1,6 +1,6 @@
 name: plantpal
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: 'none' 
 version: 1.0.0+1
 
 environment:
@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Temel Paketler
   cupertino_icons: ^1.0.2
   google_generative_ai: ^0.4.0
   image_picker: ^1.1.2
@@ -20,20 +21,20 @@ dependencies:
   path_provider: ^2.1.3
   path: ^1.9.0
   curved_navigation_bar: ^1.0.3
-  firebase_auth: ^5.1.2
-  google_sign_in: ^6.2.1
   permission_handler: ^11.3.1
-
-  # YENİ BİLDİRİM SİSTEMİ İÇİN GEREKLİ PAKETLER
+  
+  # Arka Plan ve Bildirim Paketleri
   flutter_background_service: ^5.0.5
   flutter_local_notifications: ^17.2.1
   android_alarm_manager_plus: ^4.0.7
-  
-    
+
+  # Firebase (Şimdilik kullanılmıyor ama dursun)
+  firebase_auth: ^5.1.2
+  google_sign_in: ^6.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.13.1
 
