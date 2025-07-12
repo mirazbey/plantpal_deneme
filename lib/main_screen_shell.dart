@@ -1,4 +1,4 @@
-// lib/main_screen_shell.dart (NİHAİ TASARIM VE DÜZENLEME)
+// lib/main_screen_shell.dart (NİHAİ, BASİTLEŞTİRİLMİŞ VE HATASIZ HALİ)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -9,6 +9,7 @@ import 'package:plantpal/models/plant_prediction.dart';
 import 'package:plantpal/models/plant_record.dart';
 import 'package:plantpal/pages/identify_page.dart';
 import 'package:plantpal/pages/my_plants_page.dart';
+import 'package:plantpal/pages/settings_page.dart';
 import 'package:plantpal/services/database_service.dart';
 import 'package:plantpal/services/gemini_service.dart';
 import 'package:plantpal/services/location_service.dart';
@@ -25,21 +26,38 @@ class MainScreenShell extends StatefulWidget {
 
 class _MainScreenShellState extends State<MainScreenShell> {
   bool _showSplash = true;
-  int _pageIndex = 1; // 0: Bitkilerim, 1: Ana Ekran (Tanımla)
+  int _pageIndex = 1;
 
-  // Tanımlama sayfası için durum değişkenleri
   File? _selectedImage;
-  String _plantInfo = "Bitkinizi tanımak için aşağıdaki menüden seçim yapın.";
+  String _plantInfo = "Tanımam için bana bir bitki göster!";
   bool _isLoading = false;
   List<PlantPrediction> _predictions = [];
   int _selectedPredictionIndex = 0;
-
-  // Bitkilerim sayfası için durum değişkeni
   List<PlantRecord> _plantHistory = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    await _refreshPlants();
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _showSplash = false);
+  }
+
+  Future<void> _refreshPlants() async {
+    final plants = await DatabaseService.instance.getAllPlants();
+    if (mounted) {
+      setState(() {
+        _plantHistory = plants;
+      });
+    }
+  }
   
-  // Fonksiyonların hepsi önceki mesajlardakiyle aynı, değişiklik yok...
-  // ...
-  // (Burada diğer fonksiyonlarınızın olduğunu varsayıyorum)
+  // ... (Diğer tüm fonksiyonlarınız burada aynı kalacak, onlara dokunmuyoruz)
+  // _parsePredictions, _pickImageAndIdentify, _onSaveButtonPressed vb.
     List<PlantPrediction> _parsePredictions(String rawText) {
     final List<PlantPrediction> predictions = [];
     final parts = rawText.split(RegExp(r'---TAHMİN \d+---'));
@@ -70,7 +88,6 @@ class _MainScreenShellState extends State<MainScreenShell> {
   }
   
   Future<void> _pickImageAndIdentify(ImageSource source) async {
-    // Tanımla sayfasına geçiş yap ve işlemi başlat
     setState(() => _pageIndex = 1); 
     _processImageIdentification(source);
   }
@@ -145,16 +162,18 @@ class _MainScreenShellState extends State<MainScreenShell> {
 
       if (newRecord != null) {
         await _addPlantToHistory(newRecord);
-        if (mounted) {
-          await _showNotificationSchedulerDialog(newRecord);
+         if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${newRecord.nickname} koleksiyonuna eklendi!')),
+          );
         }
       }
     }
   }
-
+  
   Future<PlantRecord?> _showSavePlantDialog({required File image, required Map<String, String> plantInfo}) async {
     final nicknameController = TextEditingController();
-    const List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever'];
+    const List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever','Işık Sever','Nemli Toprak Sever'];
     List<String> selectedTags = [];
 
     return showDialog<PlantRecord>(
@@ -201,7 +220,7 @@ class _MainScreenShellState extends State<MainScreenShell> {
               onPressed: () => Navigator.of(dialogContext).pop(null),
             ),
             TextButton(
-              child: const Text('İleri: Hatırlatıcı Kur'),
+              child: const Text('Kaydet'),
               onPressed: () {
                 final record = PlantRecord(
                   image: image,
@@ -218,10 +237,8 @@ class _MainScreenShellState extends State<MainScreenShell> {
       },
     );
   }
-
-    // DEĞİŞTİRİLECEK OLAN FONKSİYONUN TAMAMI
-
-// DEĞİŞTİRİLECEK OLAN FONKSİYONUN TAMAMI
+  
+  // DEĞİŞTİRİLECEK OLAN FONKSİYONUN TAMAMI
 
 Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
   final Map<int, String> weekdays = {1: 'Pazartesi', 2: 'Salı', 3: 'Çarşamba', 4: 'Perşembe', 5: 'Cuma', 6: 'Cumartesi', 7: 'Pazar'};
@@ -246,18 +263,19 @@ Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
                     value: selectedDay,
                     isExpanded: true,
                     items: weekdays.entries.map((entry) => DropdownMenuItem<int>(value: entry.key, child: Text(entry.value))).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => selectedDay = value);
-                      }
-                    },
+                    onChanged: (value) => setState(() => selectedDay = value!),
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton(
                     child: Text('Saat Seç: ${selectedTime.format(context)}'),
                     onPressed: () async {
-                      final TimeOfDay? picked = await showTimePicker(context: context, initialTime: selectedTime);
-                      if (picked != null) setState(() => selectedTime = picked);
+                      final TimeOfDay? picked = await showTimePicker(
+                        context: context,
+                        initialTime: selectedTime,
+                      );
+                      if (picked != null) {
+                        setState(() => selectedTime = picked);
+                      }
                     },
                   ),
                 ],
@@ -271,13 +289,9 @@ Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
               TextButton(
                 child: const Text('Hatırlatıcıyı Kur'),
                 onPressed: () async {
-                  // ---- ÇÖZÜM BURADA ----
-                  
-                  // 1. Context'e bağlı nesneleri `await` işleminden ÖNCE yakala
                   final navigator = Navigator.of(dialogContext);
                   final messenger = ScaffoldMessenger.of(context);
                   
-                  // 2. Zaman alan işlemi (bildirim kurma) gerçekleştir
                   await NotificationService().scheduleWeeklyNotification(
                     id: record.id.hashCode,
                     plantName: record.nickname,
@@ -285,8 +299,7 @@ Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
                     time: selectedTime,
                   );
                   
-                  // 3. Artık güvenle yakaladığın nesneleri kullan
-                  navigator.pop(); // Diyalogu kapat
+                  navigator.pop();
                   messenger.showSnackBar(
                     SnackBar(content: Text('${record.nickname} için hatırlatıcı kuruldu!')),
                   );
@@ -300,32 +313,12 @@ Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
   );
 }
   
-  @override
-  void initState() {
-    super.initState();
-    _initializeApp();
-  }
-
-  Future<void> _initializeApp() async {
-    await _refreshPlants();
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => _showSplash = false);
-  }
-
   Future<void> _addPlantToHistory(PlantRecord record) async {
     await DatabaseService.instance.insertPlant(record);
     await _refreshPlants();
   }
-  
-  Future<void> _refreshPlants() async {
-    final plants = await DatabaseService.instance.getAllPlants();
-    if (mounted) {
-      setState(() {
-        _plantHistory = plants;
-      });
-    }
-  }
 
+  // --- build METODU (YENİDEN DÜZENLENDİ) ---
 
   @override
   Widget build(BuildContext context) {
@@ -345,41 +338,118 @@ Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
         onClear: () => setState(() {
           _selectedImage = null;
           _predictions = [];
-          _plantInfo = "Bitkinizi tanımak için aşağıdaki menüden seçim yapın.";
+          _plantInfo = "Tanımam için bana bir bitki göster!";
         }),
         onSave: _onSaveButtonPressed,
+        // Baloncuk butonu için callback'iHomeScreen'e geçmiyoruz, çünkü buton artık burada.
+        onScheduleReminder: () {}, 
       ),
     ];
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      extendBody: true, 
+      extendBody: true,
+      appBar: AppBar(
+        title: Text(_pageIndex == 0 ? 'Bitkilerim' : 'Bitki Tanımla', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.black87)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        actions: [
+          if (_pageIndex == 1 && _predictions.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.black54, size: 30),
+              tooltip: 'Koleksiyona Kaydet',
+              onPressed: _onSaveButtonPressed,
+            ),
+          IconButton(
+            icon: const Icon(Icons.settings_rounded, color: Colors.black54),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage())),
+          ),
+        ],
+      ),
+      // YENİ YAPI: Ana gövde bir Stack
+      body: Stack(
+        children: [
+          // Arka plandaki asıl sayfa
+          IndexedStack(
+            index: _pageIndex,
+            children: pages,
+          ),
+          // Sadece "Tanımla" sayfasındayken görünecek olan baloncuk buton
+          if (_pageIndex == 1 && _predictions.isNotEmpty && !_isLoading)
+            Positioned(
+              left: 20,
+              bottom: 100, // Navigasyon barından daha yukarıda olması için
+              child: InkWell(
+                onTap: () {
+                  final bestPrediction = _predictions[_selectedPredictionIndex];
+                  final tempRecord = PlantRecord(
+                    image: _selectedImage!,
+                    plantInfo: {'Bitki Adı': bestPrediction.name, 'Sulama Sıklığı': bestPrediction.watering},
+                    date: DateTime.now(),
+                    nickname: bestPrediction.name,
+                  );
+                  _showNotificationSchedulerDialog(tempRecord);
+                },
+                borderRadius: BorderRadius.circular(25),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGreen.withAlpha(230),
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(38), spreadRadius: 1, blurRadius: 8, offset: const Offset(0, 4))],
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.notifications_active_outlined, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text("Hatırlatıcı Kur", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       bottomNavigationBar: CurvedNavigationBar(
-        index: _pageIndex, // Başlangıçta ana ekran (index 1) seçili
+        index: _pageIndex,
         items: const <Widget>[
           Icon(Icons.grass_rounded, size: 30, color: Colors.white),
           Icon(Icons.eco_rounded, size: 40, color: Colors.white),
-          Icon(Icons.photo_library_rounded, size: 30, color: Colors.white),
         ],
+        onTap: (index) {
+          if (index == 1) { // Ana Buton (Tanımla) - Kamera veya Galeri sor
+            showModalBottomSheet(
+              context: context,
+              builder: (context) => Wrap(
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(Icons.photo_camera_rounded),
+                    title: const Text('Kamera'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _pickImageAndIdentify(ImageSource.camera);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library_rounded),
+                    title: const Text('Galeri'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _pickImageAndIdentify(ImageSource.gallery);
+                    },
+                  ),
+                ],
+              ),
+            );
+          } else { // Bitkilerim
+            setState(() => _pageIndex = index);
+          }
+        },
         color: AppTheme.primaryGreen,
         buttonBackgroundColor: AppTheme.primaryGreen,
         backgroundColor: Colors.transparent,
         animationCurve: Curves.easeInOut,
-        animationDuration: const Duration(milliseconds: 400),
-        onTap: (index) {
-          if (index == 0) { // Bitkilerim
-            setState(() => _pageIndex = 0);
-          } else if (index == 1) { // Ana Ekran (Tanımla) - Kamera'yı tetikler
-            _pickImageAndIdentify(ImageSource.camera);
-          } else if (index == 2) { // Galeri
-            _pickImageAndIdentify(ImageSource.gallery);
-          }
-        },
         letIndexChange: (index) => true,
-      ),
-      body: IndexedStack(
-        index: _pageIndex,
-        children: pages,
       ),
     );
   }

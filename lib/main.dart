@@ -1,29 +1,27 @@
-// lib/main.dart (DOĞRU İZİN İSTEME MANTIĞI)
-
+// lib/main.dart (NİHAİ VE DOĞRU VERSİYON)
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // YENİ İMPORT
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:plantpal/main_screen_shell.dart';
 import 'package:plantpal/services/notification_service.dart';
 import 'package:plantpal/theme/app_theme.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  tz.initializeTimeZones();
 
-  // Bildirim servisini başlat
   await NotificationService().initialize();
-  
-  // YENİ VE DOĞRU İZİN İSTEME KODU
-  // Sadece Android platformunda çalışacak
+
+  // DOĞRU VE KESİN İZİN İSTEME YÖNTEMİ
   if (Platform.isAndroid) {
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
         FlutterLocalNotificationsPlugin().resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
-    
+
     final bool? granted = await androidImplementation?.requestNotificationsPermission();
 
-    // Konsola geri bildirim yazdır
     if (kDebugMode) {
       print("Bildirim izni istendi. Kullanıcı onayı: $granted");
     }

@@ -1,4 +1,4 @@
-// android/app/build.gradle.kts (NİHAİ VE EN GÜNCEL VERSİYON)
+// android/app/build.gradle.kts (TÜM HATALARI ÇÖZEN NİHAİ VERSİYON)
 
 plugins {
     id("com.android.application")
@@ -11,22 +11,25 @@ android {
     // Gerekli en yüksek versiyon olan 35'e yükseltiyoruz
     compileSdk = 35
 
-    defaultConfig {
-        applicationId = "com.example.plantpal"
-        minSdk = 21 // Çoğu paket için en az 21 gerekir.
-        targetSdk = 35 
-        versionCode = 1
-        versionName = "1.0"
-    }
-
     compileOptions {
+        // <<<--- HATA ÇÖZÜMÜ 1: Desugaring özelliğini aktif hale getiriyoruz
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "1.8"
+    }
+
+    defaultConfig {
+        applicationId = "com.example.plantpal"
+        // Firebase Auth için minSdk'yı 23'e yükseltiyoruz
+        minSdk = 23
+        // targetSdk'yı da 35 yapıyoruz
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0.0"
     }
 
     buildTypes {
@@ -37,6 +40,7 @@ android {
 }
 
 dependencies {
+    // <<<--- HATA ÇÖZÜMÜ 2: Desugaring için gerekli kütüphane bağımlılığı
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 
