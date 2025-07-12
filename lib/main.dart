@@ -7,6 +7,7 @@ import 'package:plantpal/main_screen_shell.dart';
 import 'package:plantpal/services/notification_service.dart';
 import 'package:plantpal/theme/app_theme.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

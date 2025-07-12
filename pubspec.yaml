@@ -27,7 +27,9 @@ dependencies:
   # YENİ BİLDİRİM SİSTEMİ İÇİN GEREKLİ PAKETLER
   flutter_background_service: ^5.0.5
   flutter_local_notifications: ^17.2.1
+  android_alarm_manager_plus: ^4.0.7
   
+    
 dev_dependencies:
   flutter_test:
     sdk: flutter
