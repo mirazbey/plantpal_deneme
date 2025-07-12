@@ -1,38 +1,50 @@
-// lib/main.dart (NİHAİ VE DOĞRU VERSİYON)
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+// lib/main.dart
+import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:plantpal/main_screen_shell.dart';
 import 'package:plantpal/services/notification_service.dart';
 import 'package:plantpal/theme/app_theme.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:permission_handler/permission_handler.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  tz.initializeTimeZones();
+  await Permission.notification.request();
+  await initializeService();
+  runApp(const MyApp());
+}
 
+Future<void> initializeService() async {
+  final service = FlutterBackgroundService();
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      autoStart: true,
+      isForegroundMode: true,
+    ),
+    iosConfiguration: IosConfiguration(autoStart: true, onForeground: onStart),
+  );
+}
+
+@pragma('vm:entry-point')
+void onStart(ServiceInstance service) async {
+  DartPluginRegistrant.ensureInitialized();
   await NotificationService().initialize();
 
-  // DOĞRU VE KESİN İZİN İSTEME YÖNTEMİ
-  if (Platform.isAndroid) {
-    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-        FlutterLocalNotificationsPlugin().resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-
-    final bool? granted = await androidImplementation?.requestNotificationsPermission();
-
-    if (kDebugMode) {
-      print("Bildirim izni istendi. Kullanıcı onayı: $granted");
+  service.on('scheduleNotification').listen((event) {
+    if (event != null) {
+      NotificationService().showNotification(
+        id: DateTime.now().millisecond, 
+        title: 'Sulama Zamanı!', 
+        body: '${event["plantName"]} adlı bitkini sulamayı unutma!'
+      );
     }
-  }
-
-  runApp(const MyApp());
+  });
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

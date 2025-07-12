@@ -1,10 +1,12 @@
-// lib/main_screen_shell.dart (NİHAİ, BASİTLEŞTİRİLMİŞ VE HATASIZ HALİ)
+// lib/main_screen_shell.dart (NİHAİ VE DOĞRU HALİ)
 
 import 'dart:io';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:plantpal/alarm_callback.dart';
 import 'package:plantpal/models/plant_prediction.dart';
 import 'package:plantpal/models/plant_record.dart';
 import 'package:plantpal/pages/identify_page.dart';
@@ -13,21 +15,19 @@ import 'package:plantpal/pages/settings_page.dart';
 import 'package:plantpal/services/database_service.dart';
 import 'package:plantpal/services/gemini_service.dart';
 import 'package:plantpal/services/location_service.dart';
-import 'package:plantpal/services/notification_service.dart';
 import 'package:plantpal/services/weather_service.dart';
 import 'package:plantpal/theme/app_theme.dart';
 
 class MainScreenShell extends StatefulWidget {
   const MainScreenShell({super.key});
-
   @override
   State<MainScreenShell> createState() => _MainScreenShellState();
 }
 
 class _MainScreenShellState extends State<MainScreenShell> {
+  // ... (Tüm state değişkenleriniz aynı) ...
   bool _showSplash = true;
   int _pageIndex = 1;
-
   File? _selectedImage;
   String _plantInfo = "Tanımam için bana bir bitki göster!";
   bool _isLoading = false;
@@ -35,7 +35,8 @@ class _MainScreenShellState extends State<MainScreenShell> {
   int _selectedPredictionIndex = 0;
   List<PlantRecord> _plantHistory = [];
 
-  @override
+  // ... (Diğer tüm fonksiyonlarınız aynı kalıyor, sadece _scheduleAlarm değişiyor)
+    @override
   void initState() {
     super.initState();
     _initializeApp();
@@ -49,15 +50,9 @@ class _MainScreenShellState extends State<MainScreenShell> {
 
   Future<void> _refreshPlants() async {
     final plants = await DatabaseService.instance.getAllPlants();
-    if (mounted) {
-      setState(() {
-        _plantHistory = plants;
-      });
-    }
+    if (mounted) setState(() => _plantHistory = plants);
   }
   
-  // ... (Diğer tüm fonksiyonlarınız burada aynı kalacak, onlara dokunmuyoruz)
-  // _parsePredictions, _pickImageAndIdentify, _onSaveButtonPressed vb.
     List<PlantPrediction> _parsePredictions(String rawText) {
     final List<PlantPrediction> predictions = [];
     final parts = rawText.split(RegExp(r'---TAHMİN \d+---'));
@@ -152,10 +147,8 @@ class _MainScreenShellState extends State<MainScreenShell> {
       final PlantRecord? newRecord = await _showSavePlantDialog(
         image: _selectedImage!,
         plantInfo: {
-          'Bitki Adı': bestPrediction.name,
-          'Sağlık Durumu': bestPrediction.health,
-          'Sulama Sıklığı': bestPrediction.watering,
-          'Günün Tavsiyesi': bestPrediction.advice,
+          'Bitki Adı': bestPrediction.name, 'Sağlık Durumu': bestPrediction.health,
+          'Sulama Sıklığı': bestPrediction.watering, 'Günün Tavsiyesi': bestPrediction.advice,
           'Işık İhtiyacı': bestPrediction.light,
         },
       );
@@ -164,7 +157,14 @@ class _MainScreenShellState extends State<MainScreenShell> {
         await _addPlantToHistory(newRecord);
          if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${newRecord.nickname} koleksiyonuna eklendi!')),
+            SnackBar(
+              content: Text('${newRecord.nickname} koleksiyona eklendi.'),
+              action: SnackBarAction(
+                label: 'Hatırlatıcı Kur',
+                onPressed: () => _scheduleAlarm(newRecord),
+              ),
+              duration: const Duration(seconds: 5),
+            ),
           );
         }
       }
@@ -223,9 +223,7 @@ class _MainScreenShellState extends State<MainScreenShell> {
               child: const Text('Kaydet'),
               onPressed: () {
                 final record = PlantRecord(
-                  image: image,
-                  plantInfo: plantInfo,
-                  date: DateTime.now(),
+                  image: image, plantInfo: plantInfo, date: DateTime.now(),
                   nickname: nicknameController.text.isNotEmpty ? nicknameController.text : plantInfo['Bitki Adı']!,
                   tags: selectedTags,
                 );
@@ -238,88 +236,34 @@ class _MainScreenShellState extends State<MainScreenShell> {
     );
   }
   
-  // DEĞİŞTİRİLECEK OLAN FONKSİYONUN TAMAMI
-
-Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
-  final Map<int, String> weekdays = {1: 'Pazartesi', 2: 'Salı', 3: 'Çarşamba', 4: 'Perşembe', 5: 'Cuma', 6: 'Cumartesi', 7: 'Pazar'};
-  int selectedDay = 1;
-  TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
-  final wateringAdvice = record.plantInfo['Sulama Sıklığı'] ?? 'Tavsiye bulunamadı.';
-
-  return showDialog<void>(
-    context: context,
-    builder: (BuildContext dialogContext) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Sulama Hatırlatıcısı Kur'),
-            content: SingleChildScrollView(
-              child: ListBody(
-                children: <Widget>[
-                  Text("Yapay Zeka Tavsiyesi:\n\"$wateringAdvice\"", style: const TextStyle(fontStyle: FontStyle.italic)),
-                  const SizedBox(height: 20),
-                  const Text('Haftanın hangi günü hatırlatalım?'),
-                  DropdownButton<int>(
-                    value: selectedDay,
-                    isExpanded: true,
-                    items: weekdays.entries.map((entry) => DropdownMenuItem<int>(value: entry.key, child: Text(entry.value))).toList(),
-                    onChanged: (value) => setState(() => selectedDay = value!),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    child: Text('Saat Seç: ${selectedTime.format(context)}'),
-                    onPressed: () async {
-                      final TimeOfDay? picked = await showTimePicker(
-                        context: context,
-                        initialTime: selectedTime,
-                      );
-                      if (picked != null) {
-                        setState(() => selectedTime = picked);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('İptal'),
-                onPressed: () => Navigator.of(dialogContext).pop(),
-              ),
-              TextButton(
-                child: const Text('Hatırlatıcıyı Kur'),
-                onPressed: () async {
-                  final navigator = Navigator.of(dialogContext);
-                  final messenger = ScaffoldMessenger.of(context);
-                  
-                  await NotificationService().scheduleWeeklyNotification(
-                    id: record.id.hashCode,
-                    plantName: record.nickname,
-                    day: selectedDay,
-                    time: selectedTime,
-                  );
-                  
-                  navigator.pop();
-                  messenger.showSnackBar(
-                    SnackBar(content: Text('${record.nickname} için hatırlatıcı kuruldu!')),
-                  );
-                },
-              ),
-            ],
-          );
-        },
+  // ALARM KURMA FONKSİYONU
+  Future<void> _scheduleAlarm(PlantRecord record) async {
+    final alarmId = record.id.hashCode; // Her bitki için kendi ID'sini kullan
+    // ignore: avoid_print
+    print("Alarm kuruluyor... ID: $alarmId");
+    await AndroidAlarmManager.oneShot(
+      const Duration(minutes: 1), // Test için 1 dakika sonrasına
+      alarmId,
+      fireAlarm,
+      exact: true,
+      wakeup: true,
+      rescheduleOnReboot: true,
+    );
+    // ignore: avoid_print
+    print("Alarm kuruldu.");
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hatırlatıcı kuruldu! 1 dakika içinde test bildirimi gelecek.')),
       );
-    },
-  );
-}
-  
+    }
+  }
+
   Future<void> _addPlantToHistory(PlantRecord record) async {
     await DatabaseService.instance.insertPlant(record);
     await _refreshPlants();
   }
-
-  // --- build METODU (YENİDEN DÜZENLENDİ) ---
-
+  
   @override
   Widget build(BuildContext context) {
     if (_showSplash) {
@@ -336,13 +280,15 @@ Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
         selectedPredictionIndex: _selectedPredictionIndex,
         onPredictionSelected: (index) => setState(() => _selectedPredictionIndex = index),
         onClear: () => setState(() {
-          _selectedImage = null;
-          _predictions = [];
+          _selectedImage = null; _predictions = [];
           _plantInfo = "Tanımam için bana bir bitki göster!";
         }),
         onSave: _onSaveButtonPressed,
-        // Baloncuk butonu için callback'iHomeScreen'e geçmiyoruz, çünkü buton artık burada.
-        onScheduleReminder: () {}, 
+        onScheduleReminder: () { // Bu artık kullanılmıyor ama widget beklediği için boş olarak duruyor
+          if (_predictions.isNotEmpty) {
+             _scheduleAlarm(_plantHistory.first); // Örnek olarak ilk bitki için
+          }
+        },
       ),
     ];
 
@@ -366,49 +312,9 @@ Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
           ),
         ],
       ),
-      // YENİ YAPI: Ana gövde bir Stack
-      body: Stack(
-        children: [
-          // Arka plandaki asıl sayfa
-          IndexedStack(
-            index: _pageIndex,
-            children: pages,
-          ),
-          // Sadece "Tanımla" sayfasındayken görünecek olan baloncuk buton
-          if (_pageIndex == 1 && _predictions.isNotEmpty && !_isLoading)
-            Positioned(
-              left: 20,
-              bottom: 100, // Navigasyon barından daha yukarıda olması için
-              child: InkWell(
-                onTap: () {
-                  final bestPrediction = _predictions[_selectedPredictionIndex];
-                  final tempRecord = PlantRecord(
-                    image: _selectedImage!,
-                    plantInfo: {'Bitki Adı': bestPrediction.name, 'Sulama Sıklığı': bestPrediction.watering},
-                    date: DateTime.now(),
-                    nickname: bestPrediction.name,
-                  );
-                  _showNotificationSchedulerDialog(tempRecord);
-                },
-                borderRadius: BorderRadius.circular(25),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryGreen.withAlpha(230),
-                    borderRadius: BorderRadius.circular(25),
-                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(38), spreadRadius: 1, blurRadius: 8, offset: const Offset(0, 4))],
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.notifications_active_outlined, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text("Hatırlatıcı Kur", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
+      body: IndexedStack(
+        index: _pageIndex,
+        children: pages,
       ),
       bottomNavigationBar: CurvedNavigationBar(
         index: _pageIndex,
@@ -417,7 +323,7 @@ Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
           Icon(Icons.eco_rounded, size: 40, color: Colors.white),
         ],
         onTap: (index) {
-          if (index == 1) { // Ana Buton (Tanımla) - Kamera veya Galeri sor
+          if (index == 1) {
             showModalBottomSheet(
               context: context,
               builder: (context) => Wrap(
@@ -441,7 +347,7 @@ Future<void> _showNotificationSchedulerDialog(PlantRecord record) async {
                 ],
               ),
             );
-          } else { // Bitkilerim
+          } else {
             setState(() => _pageIndex = index);
           }
         },

@@ -1,6 +1,6 @@
-// lib/pages/settings_page.dart
+// lib/pages/settings_page.dart (TEMİZLENMİŞ VE DOĞRU HALİ)
+
 import 'package:flutter/material.dart';
-import 'package:plantpal/pages/reminders_list_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -8,14 +8,20 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ayarlar')),
+      appBar: AppBar(
+        title: const Text('Ayarlar'),
+      ),
       body: ListView(
-        children: [
+        children: const [
+          // Gelecekte buraya yeni ayarlar eklenecek.
+          // Şimdilik boş bir liste olarak duruyor.
           ListTile(
-            leading: const Icon(Icons.bug_report_rounded),
-            title: const Text('Bildirim Teşhis Ekranı'),
-            subtitle: const Text('Kurulu hatırlatıcıları gör ve test et.'),
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RemindersListPage())),
+            leading: Icon(Icons.palette_outlined),
+            title: Text('Tema Ayarları (Yakında)'),
+          ),
+          ListTile(
+            leading: Icon(Icons.login_rounded),
+            title: Text('Google ile Giriş (Yakında)'),
           ),
         ],
       ),
