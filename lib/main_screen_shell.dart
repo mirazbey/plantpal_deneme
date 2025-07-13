@@ -135,7 +135,12 @@ class _MainScreenShellState extends State<MainScreenShell> {
     }
   }
 
+  // main_screen_shell.dart dosyasının içindeki bu iki fonksiyonu güncelleyin
+
   Future<void> _onSaveButtonPressed() async {
+    // Bu fonksiyonu çağırmadan önce zaten bir "mounted" kontrolü yapmak en iyisidir.
+    if (!mounted) return;
+
     if (_predictions.isNotEmpty && _selectedImage != null) {
       final bestPrediction = _predictions[_selectedPredictionIndex];
       final PlantRecord? newRecord = await _showSavePlantDialog(
@@ -149,15 +154,13 @@ class _MainScreenShellState extends State<MainScreenShell> {
         },
       );
       if (newRecord != null) {
-        // ID'nin atanabilmesi için önce veritabanına ekliyoruz.
-        await _addPlantToHistory(newRecord); 
+        await _addPlantToHistory(newRecord);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('${newRecord.nickname} koleksiyona eklendi.'),
               action: SnackBarAction(
                 label: 'Hatırlatıcı Kur',
-                // Alarmı kurarken artık ID'si olan newRecord'u kullanıyoruz
                 onPressed: () => _scheduleAlarm(newRecord),
               ),
               duration: const Duration(seconds: 5),
@@ -168,89 +171,93 @@ class _MainScreenShellState extends State<MainScreenShell> {
     }
   }
 
-  Future<PlantRecord?> _showSavePlantDialog(
-      {required File image, required Map<String, String> plantInfo}) async {
-    final nicknameController = TextEditingController();
-    const List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever', 'Işık Sever', 'Nemli Toprak Sever'];
-    List<String> selectedTags = [];
-    return showDialog<PlantRecord>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Bitkinizi Kaydedin'),
-          content: SingleChildScrollView(
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                return ListBody(
-                  children: <Widget>[
-                    Text('"${plantInfo['Bitki Adı']}" için bir takma ad belirleyin:'),
-                    TextField(
-                      controller: nicknameController,
-                      decoration: const InputDecoration(hintText: 'Örn: Yeşil Dostum'),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text('Etiketler seçin:'),
-                    Wrap(
-                      spacing: 8.0,
-                      children: availableTags.map((tag) {
-                        return FilterChip(
-                          label: Text(tag),
-                          selected: selectedTags.contains(tag),
-                          onSelected: (bool selected) {
-                            setState(() {
-                              if (selected) { selectedTags.add(tag); } 
-                              else { selectedTags.remove(tag); }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                );
-              },
+    Future<PlantRecord?> _showSavePlantDialog(
+        {required File image, required Map<String, String> plantInfo}) async {
+      // Fonksiyonun başına bu kontrolü ekliyoruz.
+      if (!mounted) return null;
+
+      final nicknameController = TextEditingController();
+      const List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever', 'Işık Sever', 'Nemli Toprak Sever'];
+      List<String> selectedTags = [];
+      return showDialog<PlantRecord>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          // ... (geri kalan kod aynı)
+          return AlertDialog(
+            title: const Text('Bitkinizi Kaydedin'),
+            content: SingleChildScrollView(
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return ListBody(
+                    children: <Widget>[
+                      Text('"${plantInfo['Bitki Adı']}" için bir takma ad belirleyin:'),
+                      TextField(
+                        controller: nicknameController,
+                        decoration: const InputDecoration(hintText: 'Örn: Yeşil Dostum'),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text('Etiketler seçin:'),
+                      Wrap(
+                        spacing: 8.0,
+                        children: availableTags.map((tag) {
+                          return FilterChip(
+                            label: Text(tag),
+                            selected: selectedTags.contains(tag),
+                            onSelected: (bool selected) {
+                              setState(() {
+                                if (selected) { selectedTags.add(tag); }
+                                else { selectedTags.remove(tag); }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('İptal'),
-              onPressed: () => Navigator.of(dialogContext).pop(null),
-            ),
-            TextButton(
-              child: const Text('Kaydet'),
-              onPressed: () {
-                final record = PlantRecord(
-                  image: image, plantInfo: plantInfo, date: DateTime.now(),
-                  nickname: nicknameController.text.isNotEmpty ? nicknameController.text : plantInfo['Bitki Adı']!,
-                  tags: selectedTags,
-                );
-                Navigator.of(dialogContext).pop(record);
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+            actions: <Widget>[
+              TextButton(
+                child: const Text('İptal'),
+                onPressed: () => Navigator.of(dialogContext).pop(null),
+              ),
+              TextButton(
+                child: const Text('Kaydet'),
+                onPressed: () {
+                  final record = PlantRecord(
+                    image: image, plantInfo: plantInfo, date: DateTime.now(),
+                    nickname: nicknameController.text.isNotEmpty ? nicknameController.text : plantInfo['Bitki Adı']!,
+                    tags: selectedTags,
+                  );
+                  Navigator.of(dialogContext).pop(record);
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
   
-  // main_screen_shell.dart içindeki _scheduleAlarm fonksiyonunun YENİ VE SON HALİ
+  // main_screen_shell.dart içindeki _scheduleAlarm fonksiyonunun NİHAİ HALİ
 
     Future<void> _scheduleAlarm(PlantRecord record) async {
-      // 1. ADIM: Kullanıcıya hazır seçenekler sunan bir menü göster
-      final Map<String, Duration> options = {
-        'Bugün': const Duration(days: 0),
-        '1 Gün Sonra': const Duration(days: 1),
-        '3 Gün Sonra': const Duration(days: 3),
-        '1 Hafta Sonra': const Duration(days: 7),
-        '15 Günde Bir': const Duration(days: 15),
-      };
+      // Await işleminden önce context'i bir değişkene atamak en güvenli yoldur.
+      final BuildContext currentContext = context;
 
+      // 1. ADIM: Kullanıcıya hazır seçenekler sunan bir menü göster
       final Duration? selectedDuration = await showDialog<Duration>(
-        context: context,
+        context: currentContext, // Güvenli context'i kullan
         builder: (context) {
           return SimpleDialog(
             title: Text('${record.nickname} için hatırlatıcı sıklığı seçin'),
-            children: options.entries.map((entry) {
+            children: <String, Duration>{
+              'Bugün': const Duration(days: 0),
+              '1 Gün Sonra': const Duration(days: 1),
+              '3 Gün Sonra': const Duration(days: 3),
+              '1 Hafta Sonra': const Duration(days: 7),
+            }.entries.map((entry) {
               return SimpleDialogOption(
                 onPressed: () => Navigator.pop(context, entry.value),
                 child: Padding(
@@ -263,24 +270,22 @@ class _MainScreenShellState extends State<MainScreenShell> {
         },
       );
 
-      // Eğer kullanıcı bir süre seçmeden menüyü kapatırsa, işlemi bitir
-      if (selectedDuration == null) return;
+      // Eğer kullanıcı bir süre seçmeden menüyü kapatırsa veya sayfa artık yoksa işlemi bitir
+      if (selectedDuration == null || !currentContext.mounted) return;
 
       // 2. ADIM: Kullanıcıya saat seçtir
       final TimeOfDay? pickedTime = await showTimePicker(
-        context: context,
+        context: currentContext, // Güvenli context'i kullan
         initialTime: TimeOfDay.now(),
       );
 
-      // Eğer kullanıcı saat seçmeden kapatırsa, işlemi bitir
-      if (pickedTime == null || !mounted) return;
+      // Eğer kullanıcı saat seçmeden kapatırsa veya sayfa artık yoksa işlemi bitir
+      if (pickedTime == null || !currentContext.mounted) return;
 
       // 3. ADIM: Nihai alarm zamanını hesapla
       final now = DateTime.now();
-      // Önce seçilen gün kadar ileri git
       final targetDay = now.add(selectedDuration);
-      // Sonra saati, kullanıcının seçtiği saat ile değiştir
-      final scheduledDate = DateTime(
+      var scheduledDate = DateTime(
         targetDay.year,
         targetDay.month,
         targetDay.day,
@@ -288,19 +293,17 @@ class _MainScreenShellState extends State<MainScreenShell> {
         pickedTime.minute,
       );
 
-      // Eğer hesaplanan zaman geçmişte kaldıysa (örn: "Bugün" seçip geçmiş bir saat girdi), bir sonraki güne ayarla
       if (scheduledDate.isBefore(now)) {
-        scheduledDate.add(const Duration(days: 1));
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
       }
 
       // 4. ADIM: Alarmı kur ve veritabanına kaydet
       final alarmId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
 
-      // Daha önce sorunsuz çalışan alarm yöneticisini kullanıyoruz
       await AndroidAlarmManager.oneShotAt(
         scheduledDate,
         alarmId,
-        fireAlarm, // Bu sizin alarm_callback.dart dosyanızdaki fonksiyon
+        fireAlarm,
         exact: true,
         wakeup: true,
         allowWhileIdle: true,
@@ -316,6 +319,8 @@ class _MainScreenShellState extends State<MainScreenShell> {
       );
       await DatabaseService.instance.insertReminder(newReminder);
 
+      // Son olarak, SnackBar göstermeden önce sayfanın hala var olduğundan son bir kez emin ol
+      //... (veritabanına kaydetme işlemi bittikten sonra)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${record.nickname} için hatırlatıcı kuruldu!')),

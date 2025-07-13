@@ -9,17 +9,17 @@ plugins {
 android {
     namespace = "com.example.plantpal"
     // Gerekli en yüksek versiyon olan 35'e yükseltiyoruz
-    compileSdk = 35
+    compileSdk = 34
 
     compileOptions {
         // Desugaring özelliğini aktif hale getiriyoruz
         isCoreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
 
     defaultConfig {
@@ -27,7 +27,7 @@ android {
         // Firebase Auth için minSdk'yı 23'e yükseltiyoruz
         minSdk = 23
         // targetSdk'yı da 35 yapıyoruz
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
     }
