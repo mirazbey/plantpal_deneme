@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1026191457232",
+    "project_id": "plantpal-project",
+    "storage_bucket": "plantpal-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1026191457232:android:29386d7cb664ba792497d5",
+        "android_client_info": {
+          "package_name": "com.example.plantpal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEn1NBYT1bcUP6ViMDx2C6uwMaPiSiCiI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,7 +1,8 @@
-// lib/pages/identify_page.dart (NİHAİ VE DOĞRU HALİ)
+// lib/pages/identify_page.dart (LOTTIE ANİMASYONU EKLENMİŞ SON HALİ)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart'; // Lottie paketini import ediyoruz
 import 'package:plantpal/models/plant_prediction.dart';
 import 'package:plantpal/pages/photo_viewer_page.dart';
 import 'package:plantpal/widgets/info_card.dart';
@@ -37,46 +38,69 @@ class HomeScreen extends StatelessWidget {
         ? predictions[selectedPredictionIndex]
         : null;
 
-    return Stack( // Sayfayı Stack ile sarıyoruz
+    return Stack(
       children: [
-        // Ana, kaydırılabilir içerik
         SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              GestureDetector(
-                onTap: () {
-                  if (selectedImage != null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => PhotoViewerPage(imageFile: selectedImage!)));
-                  }
-                },
-                child: Container(
-                  height: 300,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withAlpha(25), spreadRadius: 2, blurRadius: 10)],
+              // --- ANA GÖRSEL BÖLÜMÜ ---
+              if (selectedImage == null)
+                // Eğer resim seçilmemişse, animasyonu göster
+                Column(
+                  children: [
+                    Lottie.asset(
+                      'assets/images/Clear_Day.json', // Animasyon dosyamızın yolu
+                      height: 250, // Animasyon yüksekliği
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Text(
+                        "Merhaba! Tanımlamak istediğiniz bitkinin fotoğrafını çekin veya galeriden seçin.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                // Eğer resim seçilmişse, resmi gösteren kart
+                GestureDetector(
+                  onTap: () {
+                    if (selectedImage != null) {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => PhotoViewerPage(imageFile: selectedImage!)));
+                    }
+                  },
+                  child: Container(
+                    height: 300,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [BoxShadow(color: Colors.black.withAlpha(25), spreadRadius: 2, blurRadius: 10)],
+                    ),
+                    child: ClipRRect(borderRadius: BorderRadius.circular(20), child: Image.file(selectedImage!, fit: BoxFit.cover)),
                   ),
-                  child: selectedImage != null
-                      ? ClipRRect(borderRadius: BorderRadius.circular(20), child: Image.file(selectedImage!, fit: BoxFit.cover))
-                      : const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.image_search_rounded, size: 80, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text(
-                              'Tanımlama için aşağıdaki menüden seçim yapın.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey),
-                            )
-                          ],
-                        ),
                 ),
-              ),
               const SizedBox(height: 24),
+
+              // --- BİLGİ KARTLARI BÖLÜMÜ ---
               if (isLoading)
-                const Center(child: CircularProgressIndicator())
+                // --- YENİ YÜKLEME ANİMASYONU ---
+                Column(
+                  children: [
+                    Lottie.asset(
+                      'assets/images/Walking_Pothos.json', // Yürüyen Pothos animasyonu
+                      height: 150,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Bitkiniz analiz ediliyor...',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ],
+                )
               else if (selectedPrediction != null)
                 Column(
                   children: [
@@ -129,18 +153,18 @@ class HomeScreen extends StatelessWidget {
                     InfoCard(icon: Icons.wb_sunny_rounded, title: 'Işık İhtiyacı', content: selectedPrediction.light),
                   ],
                 )
+              else if (selectedImage == null)
+                const SizedBox.shrink() // Animasyon gösterilirken eski metni gösterme
               else
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 40.0),
                   child: Text(plantInfo, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Colors.grey)),
                 ),
-              const SizedBox(height: 100), // Navigasyon barı için boşluk
+              const SizedBox(height: 100),
             ],
           ),
         ),
 
-        // YENİ HATIRLATICI BUTONU BURADA
-        // Koşul: Sadece bir tahmin varsa ve yükleme devam etmiyorsa göster
         if (predictions.isNotEmpty && !isLoading)
           Positioned(
             left: 20,
@@ -151,11 +175,11 @@ class HomeScreen extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryGreen.withAlpha(230), // withOpacity yerine withAlpha
+                  color: AppTheme.primaryGreen.withAlpha(230),
                   borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withAlpha(38), // withOpacity yerine withAlpha
+                      color: Colors.black.withAlpha(38),
                       spreadRadius: 1,
                       blurRadius: 8,
                       offset: const Offset(0, 4),

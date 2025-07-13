@@ -1,53 +1,87 @@
+// lib/theme/app_theme.dart (TYPO DÜZELTİLMİŞ HALİ)
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Logonuzdaki ana yeşil rengi tanımlıyoruz
-  static const Color primaryGreen = Color(0xFF4CAF50); // Bu renk kodunu istediğinizle değiştirebilirsiniz
+  // Ana Renkler
+  static const Color primaryGreen = Color(0xFF4CAF50);
+  static const Color darkScaffoldColor = Color(0xFF121212);
+  static const Color darkCardColor = Color(0xFF1E1E1E);
 
-  // Uygulamanın genel teması
+  // --- AÇIK TEMA ---
   static final ThemeData lightTheme = ThemeData(
+    brightness: Brightness.light,
     primaryColor: primaryGreen,
-    scaffoldBackgroundColor: const Color(0xFFF5F5F5), // Açık gri arka plan
-
-    // AppBar (Üst bar) teması
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.transparent,
+    scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+    appBarTheme: AppBarTheme(
+      backgroundColor: const Color(0xFFF5F5F5),
       elevation: 0,
       centerTitle: true,
-      titleTextStyle: TextStyle(
+      titleTextStyle: GoogleFonts.montserrat(
         color: Colors.black,
         fontWeight: FontWeight.bold,
         fontSize: 22,
       ),
-      iconTheme: IconThemeData(color: Colors.black),
+      iconTheme: const IconThemeData(color: Colors.black),
     ),
-
-    // Buton teması
+    cardColor: Colors.white,
+    textTheme: GoogleFonts.montserratTextTheme(ThemeData.light().textTheme),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: primaryGreen,
-        foregroundColor: Colors.white, // Buton üzerindeki yazı rengi
+        foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        textStyle: const TextStyle(
+        textStyle: GoogleFonts.montserrat(
           fontSize: 16,
           fontWeight: FontWeight.bold,
         ),
       ),
     ),
-
-    // Yüzen Aksiyon Butonu (Floating Action Button) teması
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: primaryGreen,
+      backgroundColor: primaryGreen, // <-- DÜZELTME BURADA
       foregroundColor: Colors.white,
     ),
+  );
 
-    // Yazı stilleri
-    textTheme: const TextTheme(
-      titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
-      bodyMedium: TextStyle(fontSize: 16, color: Colors.black87),
+  // --- KARANLIK TEMA ---
+  static final ThemeData darkTheme = ThemeData(
+    brightness: Brightness.dark,
+    primaryColor: primaryGreen,
+    scaffoldBackgroundColor: darkScaffoldColor,
+    appBarTheme: AppBarTheme(
+      backgroundColor: darkScaffoldColor,
+      elevation: 0,
+      centerTitle: true,
+      titleTextStyle: GoogleFonts.montserrat(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 22,
+      ),
+      iconTheme: const IconThemeData(color: Colors.white),
+    ),
+    cardColor: darkCardColor,
+    textTheme: GoogleFonts.montserratTextTheme(ThemeData.dark().textTheme),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryGreen,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        textStyle: GoogleFonts.montserrat(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: primaryGreen, // <-- VE BURADA
+      foregroundColor: Colors.white,
     ),
   );
 }

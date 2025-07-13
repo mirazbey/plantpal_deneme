@@ -1,4 +1,4 @@
-// lib/main_screen_shell.dart (Adım 3 için doğru kod)
+// lib/main_screen_shell.dart (TÜM UYARILARI GİDERİLMİŞ SON HALİ)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -16,10 +16,11 @@ import 'package:plantpal/services/location_service.dart';
 import 'package:plantpal/services/weather_service.dart';
 import 'package:plantpal/theme/app_theme.dart';
 
-// --- GEREKLİ IMPORT'LAR ---
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:plantpal/alarm_callback.dart';
-import 'package:plantpal/models/reminder.dart'; // EKLENECEK SATIR
+import 'package:plantpal/models/reminder.dart';
+import 'package:plantpal/pages/plant_saved_page.dart'; // <-- HATA GİDEREN SATIR
+
 
 class MainScreenShell extends StatefulWidget {
   const MainScreenShell({super.key});
@@ -50,8 +51,20 @@ class _MainScreenShellState extends State<MainScreenShell> {
   }
 
   Future<void> _refreshPlants() async {
-    final plants = await DatabaseService.instance.getAllPlants();
-    if (mounted) setState(() => _plantHistory = plants);
+    final localPlants = await DatabaseService.instance.getAllPlants();
+    if (mounted) {
+      setState(() {
+        _plantHistory = localPlants;
+      });
+    }
+
+    final cloudPlants = await DatabaseService.instance.getPlantsFromCloud();
+    if (mounted && cloudPlants.isNotEmpty) {
+       final allPlants = await DatabaseService.instance.getAllPlants();
+       setState(() {
+         _plantHistory = allPlants;
+       });
+    }
   }
 
   List<PlantPrediction> _parsePredictions(String rawText) {
@@ -135,10 +148,7 @@ class _MainScreenShellState extends State<MainScreenShell> {
     }
   }
 
-  // main_screen_shell.dart dosyasının içindeki bu iki fonksiyonu güncelleyin
-
   Future<void> _onSaveButtonPressed() async {
-    // Bu fonksiyonu çağırmadan önce zaten bir "mounted" kontrolü yapmak en iyisidir.
     if (!mounted) return;
 
     if (_predictions.isNotEmpty && _selectedImage != null) {
@@ -156,14 +166,19 @@ class _MainScreenShellState extends State<MainScreenShell> {
       if (newRecord != null) {
         await _addPlantToHistory(newRecord);
         if (mounted) {
+                // --- YENİ YÖNLENDİRME KODU ---
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const PlantSavedPage()),
+          );
+          // Hatırlatıcı kurma seçeneğini yine de bir SnackBar ile sunabiliriz.
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${newRecord.nickname} koleksiyona eklendi.'),
+              content: Text('${newRecord.nickname} için hatırlatıcı kurulsun mu?'),
               action: SnackBarAction(
-                label: 'Hatırlatıcı Kur',
+                label: 'Evet, Kur',
                 onPressed: () => _scheduleAlarm(newRecord),
               ),
-              duration: const Duration(seconds: 5),
+              duration: const Duration(seconds: 6),
             ),
           );
         }
@@ -173,7 +188,6 @@ class _MainScreenShellState extends State<MainScreenShell> {
 
     Future<PlantRecord?> _showSavePlantDialog(
         {required File image, required Map<String, String> plantInfo}) async {
-      // Fonksiyonun başına bu kontrolü ekliyoruz.
       if (!mounted) return null;
 
       final nicknameController = TextEditingController();
@@ -183,7 +197,6 @@ class _MainScreenShellState extends State<MainScreenShell> {
         context: context,
         barrierDismissible: false,
         builder: (BuildContext dialogContext) {
-          // ... (geri kalan kod aynı)
           return AlertDialog(
             title: const Text('Bitkinizi Kaydedin'),
             content: SingleChildScrollView(
@@ -239,16 +252,12 @@ class _MainScreenShellState extends State<MainScreenShell> {
         },
       );
     }
-  
-  // main_screen_shell.dart içindeki _scheduleAlarm fonksiyonunun NİHAİ HALİ
 
     Future<void> _scheduleAlarm(PlantRecord record) async {
-      // Await işleminden önce context'i bir değişkene atamak en güvenli yoldur.
       final BuildContext currentContext = context;
 
-      // 1. ADIM: Kullanıcıya hazır seçenekler sunan bir menü göster
       final Duration? selectedDuration = await showDialog<Duration>(
-        context: currentContext, // Güvenli context'i kullan
+        context: currentContext,
         builder: (context) {
           return SimpleDialog(
             title: Text('${record.nickname} için hatırlatıcı sıklığı seçin'),
@@ -270,19 +279,15 @@ class _MainScreenShellState extends State<MainScreenShell> {
         },
       );
 
-      // Eğer kullanıcı bir süre seçmeden menüyü kapatırsa veya sayfa artık yoksa işlemi bitir
       if (selectedDuration == null || !currentContext.mounted) return;
 
-      // 2. ADIM: Kullanıcıya saat seçtir
       final TimeOfDay? pickedTime = await showTimePicker(
-        context: currentContext, // Güvenli context'i kullan
+        context: currentContext,
         initialTime: TimeOfDay.now(),
       );
 
-      // Eğer kullanıcı saat seçmeden kapatırsa veya sayfa artık yoksa işlemi bitir
       if (pickedTime == null || !currentContext.mounted) return;
 
-      // 3. ADIM: Nihai alarm zamanını hesapla
       final now = DateTime.now();
       final targetDay = now.add(selectedDuration);
       var scheduledDate = DateTime(
@@ -297,7 +302,6 @@ class _MainScreenShellState extends State<MainScreenShell> {
         scheduledDate = scheduledDate.add(const Duration(days: 1));
       }
 
-      // 4. ADIM: Alarmı kur ve veritabanına kaydet
       final alarmId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
 
       await AndroidAlarmManager.oneShotAt(
@@ -319,8 +323,6 @@ class _MainScreenShellState extends State<MainScreenShell> {
       );
       await DatabaseService.instance.insertReminder(newReminder);
 
-      // Son olarak, SnackBar göstermeden önce sayfanın hala var olduğundan son bir kez emin ol
-      //... (veritabanına kaydetme işlemi bittikten sonra)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${record.nickname} için hatırlatıcı kuruldu!')),
@@ -352,25 +354,22 @@ class _MainScreenShellState extends State<MainScreenShell> {
           _plantInfo = "Tanımam için bana bir bitki göster!";
         }),
         onSave: _onSaveButtonPressed,
-        onScheduleReminder: () {}, // Bu artık kullanılmıyor
+        onScheduleReminder: () {},
       ),
     ];
     return Scaffold(
       extendBody: true,
       appBar: AppBar(
-        title: Text(_pageIndex == 0 ? 'Bitkilerim' : 'Bitki Tanımla', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.black87)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
+        title: Text(_pageIndex == 0 ? 'Bitkilerim' : 'Bitki Tanımla'), // Basit metin
         actions: [
           if (_pageIndex == 1 && _predictions.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.black54, size: 30),
+              icon: const Icon(Icons.add_circle_outline_rounded, size: 30),
               tooltip: 'Koleksiyona Kaydet',
               onPressed: _onSaveButtonPressed,
             ),
           IconButton(
-            icon: const Icon(Icons.settings_rounded, color: Colors.black54),
+            icon: const Icon(Icons.settings_rounded),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage())),
           ),
         ],
@@ -389,25 +388,60 @@ class _MainScreenShellState extends State<MainScreenShell> {
           if (index == 1) {
             showModalBottomSheet(
               context: context,
-              builder: (context) => Wrap(
-                children: <Widget>[
-                  ListTile(
-                    leading: const Icon(Icons.photo_camera_rounded),
-                    title: const Text('Kamera'),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      _pickImageAndIdentify(ImageSource.camera);
-                    },
+              backgroundColor: Colors.transparent,
+              builder: (context) => Container(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.photo_library_rounded),
-                    title: const Text('Galeri'),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      _pickImageAndIdentify(ImageSource.gallery);
-                    },
-                  ),
-                ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 5,
+                      // --- DÜZELTME 1 ---
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withAlpha(77), // withOpacity(0.3) yerine
+                        borderRadius: BorderRadius.circular(2.5),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Bir Fotoğraf Seçin',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: <Widget>[
+                        _buildPickerOption(
+                          context,
+                          icon: Icons.photo_camera_rounded,
+                          label: 'Kamera',
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            _pickImageAndIdentify(ImageSource.camera);
+                          },
+                        ),
+                        _buildPickerOption(
+                          context,
+                          icon: Icons.photo_library_rounded,
+                          label: 'Galeri',
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            _pickImageAndIdentify(ImageSource.gallery);
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             );
           } else {
@@ -419,6 +453,32 @@ class _MainScreenShellState extends State<MainScreenShell> {
         backgroundColor: Colors.transparent,
         animationCurve: Curves.easeInOut,
         letIndexChange: (index) => true,
+      ),
+    );
+  }
+
+  Widget _buildPickerOption(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(100),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                // --- DÜZELTME 2 ---
+                color: Theme.of(context).primaryColor.withAlpha(26), // withOpacity(0.1) yerine
+              ),
+              child: Icon(icon, color: Theme.of(context).primaryColor, size: 32),
+            ),
+            const SizedBox(height: 12),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }

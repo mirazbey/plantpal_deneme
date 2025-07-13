@@ -1,4 +1,4 @@
-// lib/main.dart (NİHAİ VE PİL DOSTU HALİ)
+// lib/main.dart (YAZIM HATASI DÜZELTİLMİŞ HALİ)
 
 import 'dart:async';
 import 'dart:ui';
@@ -12,20 +12,36 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+// --- DÜZELTİLMİŞ SATIR ---
+import 'package:firebase_core/firebase_core.dart'; 
+// --------------------------
+import 'package:plantpal/services/auth_service.dart';
+import 'package:plantpal/services/theme_provider.dart';
+import 'package:provider/provider.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   await Permission.notification.request();
-  // Arka plan servislerini başlatıyoruz
   await initializeService();
-  await AndroidAlarmManager.initialize(); // Alarm Manager'ı başlat
-  // main fonksiyonunun içine, runApp'tan önce ekleyin
-  await initializeDateFormatting('tr_TR', null); // Türkçe tarih formatı için
-  runApp(const MyApp());
+  await AndroidAlarmManager.initialize();
+  await initializeDateFormatting('tr_TR', null);
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => AuthService()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
+// ... GERİ KALAN TÜM KOD AYNI ...
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
-  
+
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'plantpal_service_channel',
     'PlantPal Servisi',
@@ -44,7 +60,6 @@ Future<void> initializeService() async {
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
-      // OTOMATİK BAŞLAMAYI KAPATIYORUZ. Sadece alarm tetiklediğinde başlayacak.
       autoStart: false,
       isForegroundMode: true,
       notificationChannelId: 'plantpal_service_channel',
@@ -62,15 +77,12 @@ void onStart(ServiceInstance service) async {
   final notificationService = NotificationService();
   await notificationService.initialize();
 
-  // Gerçek sulama bildirimini göster
   notificationService.showNotification(
     id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
     title: 'Sulama Zamanı!',
     body: 'Bitkilerini sulamayı unutma! 🪴',
   );
 
-  // Görev bitti, servisi 10 saniye sonra durdur.
-  // Bu, bildirimin gönderilmesi için yeterli zaman tanır ve pil tasarrufu sağlar.
   Timer(const Duration(seconds: 10), () {
     service.stopSelf();
   });
@@ -80,10 +92,14 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return MaterialApp(
       title: 'PlantPal',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeProvider.themeMode,
       home: const MainScreenShell(),
     );
   }

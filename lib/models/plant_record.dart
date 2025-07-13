@@ -1,7 +1,9 @@
-// lib/models/plant_record.dart
+// lib/models/plant_record.dart (BULUTTAN OKUMAYA HAZIR HALİ)
 
-import 'dart:convert'; // JSON işlemleri için
+import 'dart:convert';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart';
 
 class PlantRecord {
   final String id;
@@ -17,14 +19,14 @@ class PlantRecord {
     required this.date,
     this.nickname = '',
     this.tags = const [],
-    String? id, // ID artık opsiyonel
-  }) : id = id ?? DateTime.now().toIso8601String(); // Eğer ID verilmezse yeni bir tane oluştur
+    String? id,
+  }) : id = id ?? DateTime.now().toIso8601String();
 
-  // Nesneyi veritabanına yazmak için Map'e dönüştürür
+  // YEREL veritabanına yazmak için Map'e dönüştürür
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'imagePath': image.path, // Resmin dosya yolunu kaydediyoruz
+      'imagePath': image.path,
       'plantName': plantInfo['Bitki Adı'] ?? '',
       'health': plantInfo['Sağlık Durumu'] ?? '',
       'watering': plantInfo['Sulama Sıklığı'] ?? '',
@@ -32,15 +34,15 @@ class PlantRecord {
       'light': plantInfo['Işık İhtiyacı'] ?? '',
       'date': date.toIso8601String(),
       'nickname': nickname,
-      'tags': jsonEncode(tags), // Etiket listesini JSON metnine çeviriyoruz
+      'tags': jsonEncode(tags),
     };
   }
 
-  // Veritabanından okunan Map'i nesneye dönüştürür
+  // YEREL veritabanından okunan Map'i nesneye dönüştürür
   static PlantRecord fromMap(Map<String, dynamic> map) {
     return PlantRecord(
       id: map['id'],
-      image: File(map['imagePath']), // Kaydettiğimiz yoldan dosyayı yüklüyoruz
+      image: File(map['imagePath']),
       plantInfo: {
         'Bitki Adı': map['plantName'],
         'Sağlık Durumu': map['health'],
@@ -50,7 +52,35 @@ class PlantRecord {
       },
       date: DateTime.parse(map['date']),
       nickname: map['nickname'] ?? '',
-      tags: (jsonDecode(map['tags']) as List<dynamic>).cast<String>(), // JSON metnini listeye çeviriyoruz
+      tags: (jsonDecode(map['tags']) as List<dynamic>).cast<String>(),
+    );
+  }
+
+  // --- YENİ FONKSİYON ---
+  // BULUT veritabanından (Firestore) gelen Map'i nesneye dönüştürür
+  static Future<PlantRecord> fromMapCloud(Map<String, dynamic> map) async {
+    // Metin (Base64) olarak saklanan resmi alıp tekrar dosyaya dönüştür
+    String base64Image = map['imageBase64'];
+    final bytes = base64Decode(base64Image);
+    final tempDir = await getTemporaryDirectory();
+    final imageFile = File(join(tempDir.path, '${map['id']}.jpg'));
+    await imageFile.writeAsBytes(bytes);
+
+    // PlantInfo map'ini doğru formata getir
+    Map<String, String> info = {};
+    if (map['plantInfo'] is Map) {
+      (map['plantInfo'] as Map).forEach((key, value) {
+        info[key.toString()] = value.toString();
+      });
+    }
+
+    return PlantRecord(
+      id: map['id'],
+      image: imageFile, // Yeni oluşturduğumuz dosyayı ata
+      plantInfo: info,
+      date: DateTime.parse(map['date']),
+      nickname: map['nickname'] ?? '',
+      tags: List<String>.from(map['tags'] ?? []),
     );
   }
 }
