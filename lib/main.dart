@@ -10,6 +10,7 @@ import 'package:plantpal/services/notification_service.dart';
 import 'package:plantpal/theme/app_theme.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,8 @@ Future<void> main() async {
   // Arka plan servislerini başlatıyoruz
   await initializeService();
   await AndroidAlarmManager.initialize(); // Alarm Manager'ı başlat
+  // main fonksiyonunun içine, runApp'tan önce ekleyin
+  await initializeDateFormatting('tr_TR', null); // Türkçe tarih formatı için
   runApp(const MyApp());
 }
 

@@ -19,7 +19,7 @@ import 'package:plantpal/theme/app_theme.dart';
 // --- GEREKLİ IMPORT'LAR ---
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:plantpal/alarm_callback.dart';
-
+import 'package:plantpal/models/reminder.dart'; // EKLENECEK SATIR
 
 class MainScreenShell extends StatefulWidget {
   const MainScreenShell({super.key});
@@ -52,32 +52,6 @@ class _MainScreenShellState extends State<MainScreenShell> {
   Future<void> _refreshPlants() async {
     final plants = await DatabaseService.instance.getAllPlants();
     if (mounted) setState(() => _plantHistory = plants);
-  }
-
-  Duration _parseWateringFrequency(String wateringText) {
-    int days = 3; 
-    try {
-      final RegExp regExp = RegExp(r'\d+');
-      final match = regExp.firstMatch(wateringText.toLowerCase());
-      
-      if (match != null) {
-        int? number = int.tryParse(match.group(0)!);
-        if (number != null) {
-          if (wateringText.contains('hafta')) {
-            days = number * 7;
-          } else {
-            days = number;
-          }
-        }
-      } else if (wateringText.contains('günübirlik') || wateringText.contains('her gün')) {
-        days = 1;
-      }
-    } catch (e) {
-      days = 3;
-    }
-    return Duration(days: days);
-    // TEST İÇİN DAKİKA KULLANABİLİRSİNİZ:
-    // return Duration(minutes: 1);
   }
 
   List<PlantPrediction> _parsePredictions(String rawText) {
@@ -259,28 +233,95 @@ class _MainScreenShellState extends State<MainScreenShell> {
     );
   }
   
-  Future<void> _scheduleAlarm(PlantRecord record) async {
-    final wateringInfo = record.plantInfo['Sulama Sıklığı'] ?? '3 günde bir';
-    final Duration frequency = _parseWateringFrequency(wateringInfo);
-    
-    // Her bitkinin veritabanı ID'sini kullanarak benzersiz bir alarm ID'si oluşturuyoruz.
-    final alarmId = record.id.hashCode;
+  // main_screen_shell.dart içindeki _scheduleAlarm fonksiyonunun YENİ VE SON HALİ
 
-    await AndroidAlarmManager.oneShot(
-      frequency,
-      alarmId,
-      fireAlarm,
-      exact: true,
-      wakeup: true,
-      rescheduleOnReboot: true,
-    );
+    Future<void> _scheduleAlarm(PlantRecord record) async {
+      // 1. ADIM: Kullanıcıya hazır seçenekler sunan bir menü göster
+      final Map<String, Duration> options = {
+        'Bugün': const Duration(days: 0),
+        '1 Gün Sonra': const Duration(days: 1),
+        '3 Gün Sonra': const Duration(days: 3),
+        '1 Hafta Sonra': const Duration(days: 7),
+        '15 Günde Bir': const Duration(days: 15),
+      };
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${record.nickname} için ${frequency.inDays} gün sonrasına hatırlatıcı kuruldu!')),
+      final Duration? selectedDuration = await showDialog<Duration>(
+        context: context,
+        builder: (context) {
+          return SimpleDialog(
+            title: Text('${record.nickname} için hatırlatıcı sıklığı seçin'),
+            children: options.entries.map((entry) {
+              return SimpleDialogOption(
+                onPressed: () => Navigator.pop(context, entry.value),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(entry.key),
+                ),
+              );
+            }).toList(),
+          );
+        },
       );
+
+      // Eğer kullanıcı bir süre seçmeden menüyü kapatırsa, işlemi bitir
+      if (selectedDuration == null) return;
+
+      // 2. ADIM: Kullanıcıya saat seçtir
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+      );
+
+      // Eğer kullanıcı saat seçmeden kapatırsa, işlemi bitir
+      if (pickedTime == null || !mounted) return;
+
+      // 3. ADIM: Nihai alarm zamanını hesapla
+      final now = DateTime.now();
+      // Önce seçilen gün kadar ileri git
+      final targetDay = now.add(selectedDuration);
+      // Sonra saati, kullanıcının seçtiği saat ile değiştir
+      final scheduledDate = DateTime(
+        targetDay.year,
+        targetDay.month,
+        targetDay.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+
+      // Eğer hesaplanan zaman geçmişte kaldıysa (örn: "Bugün" seçip geçmiş bir saat girdi), bir sonraki güne ayarla
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate.add(const Duration(days: 1));
+      }
+
+      // 4. ADIM: Alarmı kur ve veritabanına kaydet
+      final alarmId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+
+      // Daha önce sorunsuz çalışan alarm yöneticisini kullanıyoruz
+      await AndroidAlarmManager.oneShotAt(
+        scheduledDate,
+        alarmId,
+        fireAlarm, // Bu sizin alarm_callback.dart dosyanızdaki fonksiyon
+        exact: true,
+        wakeup: true,
+        allowWhileIdle: true,
+        rescheduleOnReboot: true,
+      );
+
+      final newReminder = Reminder(
+        id: alarmId,
+        plantId: record.id,
+        plantNickname: record.nickname,
+        imagePath: record.image.path,
+        reminderDate: scheduledDate,
+      );
+      await DatabaseService.instance.insertReminder(newReminder);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${record.nickname} için hatırlatıcı kuruldu!')),
+        );
+      }
     }
-  }
 
   Future<void> _addPlantToHistory(PlantRecord record) async {
     await DatabaseService.instance.insertPlant(record);
