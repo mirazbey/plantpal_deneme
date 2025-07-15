@@ -1,4 +1,4 @@
-// lib/main_screen_shell.dart (EN SON STABİL ÇALIŞAN VERSİYON)
+// lib/main_screen_shell.dart (DOĞRU AKIŞA DÖNDÜRÜLMÜŞ, STABİL VERSİYON)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -68,22 +68,16 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
 
   Future<void> _refreshPlants() async {
     final localPlants = await DatabaseService.instance.getAllPlants();
-    if (mounted) {
-      setState(() {
-        _plantHistory = localPlants;
-      });
-    }
+    if (mounted) setState(() => _plantHistory = localPlants);
     final cloudPlants = await DatabaseService.instance.getPlantsFromCloud();
     if (mounted && cloudPlants.isNotEmpty) {
       final allPlants = await DatabaseService.instance.getAllPlants();
-      setState(() {
-        _plantHistory = allPlants;
-      });
+      setState(() => _plantHistory = allPlants);
     }
   }
-  
+
   List<PlantPrediction> _parsePredictions(String rawText) {
-    final List<PlantPrediction> predictions = [];
+    final predictions = <PlantPrediction>[];
     final parts = rawText.split(RegExp(r'---TAHMİN \d+---'));
     for (var part in parts) {
       if (part.trim().isEmpty) continue;
@@ -130,18 +124,11 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
       _plantInfo = "Konum alınıyor...";
       _predictions = [];
     });
-    
     final locationService = LocationService();
     final Position? position = await locationService.getCurrentLocation();
     String? weatherString = "Hava durumu bilgisi alınamadı.";
-
     if (position == null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Konum kapalı. Daha iyi tavsiyeler için açabilirsiniz.'),
-          duration: Duration(seconds: 3),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Konum kapalı. Daha iyi tavsiyeler için açabilirsiniz.'), duration: Duration(seconds: 3)));
     } else if (position != null && mounted) {
       setState(() => _plantInfo = "Hava durumu alınıyor...");
       final weatherService = WeatherService();
@@ -152,7 +139,6 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
         weatherString = "$description, $temp °C";
       }
     }
-
     if (!mounted) return;
     setState(() => _plantInfo = "Bitki tanınıyor, lütfen bekleyin...");
     final result = await GeminiService.getPlantInfo(_selectedImage!, weatherString);
@@ -160,15 +146,12 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
     if (result != null && result.contains('---TAHMİN')) {
       final predictions = _parsePredictions(result);
       setState(() {
-        _plantInfo = result;
-        _predictions = predictions;
-        _selectedPredictionIndex = 0;
-        _isLoading = false;
+        _plantInfo = result; _predictions = predictions;
+        _selectedPredictionIndex = 0; _isLoading = false;
       });
     } else {
       setState(() {
-        _plantInfo = result ?? "Tanımlama başarısız oldu.";
-        _isLoading = false;
+        _plantInfo = result ?? "Tanımlama başarısız oldu."; _isLoading = false;
       });
     }
   }
@@ -188,26 +171,22 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
       if (newRecord != null) {
         await _addPlantToHistory(newRecord);
         if (mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const PlantSavedPage()),
-          );
-          ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(
-              content: Text('${newRecord.nickname} için hatırlatıcı kurulsun mu?'),
-               action: SnackBarAction(
-                label: 'Evet, Kur',
-                onPressed: () => _scheduleAlarm(newRecord),
+          await Navigator.of(context).push(MaterialPageRoute(builder: (context) => const PlantSavedPage()));
+          if(mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${newRecord.nickname} için hatırlatıcı kurulsun mu?'),
+                action: SnackBarAction(label: 'Evet, Kur', onPressed: () => _scheduleAlarm(newRecord)),
+                duration: const Duration(seconds: 6),
               ),
-              duration: const Duration(seconds: 6),
-            ),
-          );
+            );
+          }
         }
       }
     }
   }
 
-  Future<PlantRecord?> _showSavePlantDialog(
-      {required File image, required Map<String, String> plantInfo}) async {
+  Future<PlantRecord?> _showSavePlantDialog({required File image, required Map<String, String> plantInfo}) async {
     if (!mounted) return null;
     final nicknameController = TextEditingController();
     const List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever', 'Işık Sever', 'Nemli Toprak Sever'];
@@ -219,42 +198,34 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
         return AlertDialog(
           title: const Text('Bitkinizi Kaydedin'),
           content: SingleChildScrollView(
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                return ListBody(
-                  children: <Widget>[
-                    Text('"${plantInfo['Bitki Adı']}" için bir takma ad belirleyin:'),
-                    TextField(
-                      controller: nicknameController,
-                      decoration: const InputDecoration(hintText: 'Örn: Yeşil Dostum'),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text('Etiketler seçin:'),
-                    Wrap(
-                      spacing: 8.0,
-                      children: availableTags.map((tag) {
-                        return FilterChip(
-                          label: Text(tag),
-                          selected: selectedTags.contains(tag),
-                          onSelected: (bool selected) {
-                            setState(() {
-                              if (selected) { selectedTags.add(tag); }
-                              else { selectedTags.remove(tag); }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                );
-              },
-            ),
+            child: StatefulBuilder(builder: (context, setState) {
+              return ListBody(
+                children: <Widget>[
+                  Text('"${plantInfo['Bitki Adı']}" için bir takma ad belirleyin:'),
+                  TextField(controller: nicknameController, decoration: const InputDecoration(hintText: 'Örn: Yeşil Dostum')),
+                  const SizedBox(height: 20),
+                  const Text('Etiketler seçin:'),
+                  Wrap(
+                    spacing: 8.0,
+                    children: availableTags.map((tag) {
+                      return FilterChip(
+                        label: Text(tag),
+                        selected: selectedTags.contains(tag),
+                        onSelected: (bool selected) {
+                          setState(() {
+                            if (selected) { selectedTags.add(tag); }
+                            else { selectedTags.remove(tag); }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            }),
           ),
           actions: <Widget>[
-            TextButton(
-              child: const Text('İptal'),
-              onPressed: () => Navigator.of(dialogContext).pop(null),
-            ),
+            TextButton(child: const Text('İptal'), onPressed: () => Navigator.of(dialogContext).pop(null)),
             TextButton(
               child: const Text('Kaydet'),
               onPressed: () {
@@ -287,23 +258,15 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
           children: reminderOptions.entries.map((entry) {
             return SimpleDialogOption(
               onPressed: () => Navigator.pop(dialogContext, entry.value),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(entry.key),
-              ),
+              child: Padding(padding: const EdgeInsets.symmetric(vertical: 8.0), child: Text(entry.key)),
             );
           }).toList(),
         );
       },
     );
-    if (selectedInterval == null) return;
-    if (!currentContext.mounted) return;
-    final TimeOfDay? pickedTime = await showTimePicker(
-      context: currentContext,
-      initialTime: TimeOfDay.now(),
-    );
-    if (pickedTime == null) return;
-    if (!currentContext.mounted) return;
+    if (selectedInterval == null || !currentContext.mounted) return;
+    final TimeOfDay? pickedTime = await showTimePicker(context: currentContext, initialTime: TimeOfDay.now());
+    if (pickedTime == null || !currentContext.mounted) return;
     final intervalDays = selectedInterval;
     final now = DateTime.now();
     DateTime scheduledDate = DateTime(now.year, now.month, now.day, pickedTime.hour, pickedTime.minute);
@@ -311,19 +274,11 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
     final alarmId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-    await AndroidAlarmManager.oneShotAt(
-      scheduledDate, alarmId, fireAlarm,
-      exact: true, wakeup: true, allowWhileIdle: true, rescheduleOnReboot: true,
-    );
-    final newReminder = Reminder(
-      id: alarmId, plantId: record.id, plantNickname: record.nickname,
-      imagePath: record.image.path, reminderDate: scheduledDate, intervalDays: intervalDays,
-    );
+    await AndroidAlarmManager.oneShotAt(scheduledDate, alarmId, fireAlarm, exact: true, wakeup: true, allowWhileIdle: true, rescheduleOnReboot: true);
+    final newReminder = Reminder(id: alarmId, plantId: record.id, plantNickname: record.nickname, imagePath: record.image.path, reminderDate: scheduledDate, intervalDays: intervalDays);
     await DatabaseService.instance.insertReminder(newReminder);
     if (currentContext.mounted) {
-      ScaffoldMessenger.of(currentContext).showSnackBar(
-        SnackBar(content: Text('${record.nickname} için hatırlatıcı kuruldu!')),
-      );
+      ScaffoldMessenger.of(currentContext).showSnackBar(SnackBar(content: Text('${record.nickname} için hatırlatıcı kuruldu!')));
     }
   }
 
@@ -342,17 +297,14 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
             opacity: _opacityAnimation,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                borderRadius: BorderRadius.circular(15),
-              ),
+              decoration: BoxDecoration(color: Theme.of(context).primaryColor, borderRadius: BorderRadius.circular(15)),
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text("Botanik", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, height: 1.1)),
                   Text("Uzmanı", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, height: 1.1)),
                 ],
-              )
+              ),
             ),
           ),
         ),
@@ -368,56 +320,42 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
     final pages = [
       MyPlantsPage(plantHistory: _plantHistory, onPlantsUpdated: _refreshPlants),
       HomeScreen(
-        selectedImage: _selectedImage, plantInfo: _plantInfo, isLoading: _isLoading,
-        predictions: _predictions, selectedPredictionIndex: _selectedPredictionIndex,
+        selectedImage: _selectedImage,
+        plantInfo: _plantInfo,
+        isLoading: _isLoading,
+        predictions: _predictions,
+        selectedPredictionIndex: _selectedPredictionIndex,
         onPredictionSelected: (index) => setState(() => _selectedPredictionIndex = index),
         onClear: () => setState(() {
           _selectedImage = null; _predictions = [];
           _plantInfo = "Tanımam için bana bir bitki göster!";
         }),
         onSave: _onSaveButtonPressed,
-        onScheduleReminder: () {
-           if (_predictions.isNotEmpty && _selectedImage != null) {
-             final bestPrediction = _predictions[_selectedPredictionIndex];
-             final tempRecord = PlantRecord(
-               id: 'temp_${DateTime.now().millisecondsSinceEpoch}', image: _selectedImage!,
-               nickname: bestPrediction.name,
-               plantInfo: {
-                 'Bitki Adı': bestPrediction.name, 'Sağlık Durumu': bestPrediction.health,
-                 'Sulama Sıklığı': bestPrediction.watering, 'Günün Tavsiyesi': bestPrediction.advice,
-                 'Işık İhtiyacı': bestPrediction.light,
-               },
-               date: DateTime.now(),
-             );
-             _scheduleAlarm(tempRecord);
-           }
-        },
       ),
     ];
     return Scaffold(
       appBar: AppBar(
         leading: _pageIndex == 1
-            ? _buildFlashingTextBubble(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ChatbotPage()),
-                  );
-                },
-              )
+            ? _buildFlashingTextBubble(onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatbotPage()));
+              })
             : null,
         title: Text(_pageIndex == 0 ? 'Bitkilerim' : 'Bitki Tanımla'),
         actions: [
+          // DÜZELTME: Kaydet butonu buraya geri geldi.
+          if (_pageIndex == 1 && _predictions.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline_rounded, size: 30),
+              tooltip: 'Koleksiyona Kaydet',
+              onPressed: _onSaveButtonPressed,
+            ),
           IconButton(
             icon: const Icon(Icons.settings_rounded),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage())),
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _pageIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: _pageIndex, children: pages),
       bottomNavigationBar: CurvedNavigationBar(
         index: _pageIndex,
         items: const <Widget>[
@@ -433,39 +371,26 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
                 padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(30),
-                    topRight: Radius.circular(30),
-                  ),
+                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 50, height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withAlpha(77),
-                        borderRadius: BorderRadius.circular(2.5),
-                      ),
-                    ),
+                    Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey.withAlpha(77), borderRadius: BorderRadius.circular(2.5))),
                     const SizedBox(height: 20),
                     const Text('Bir Fotoğraf Seçin', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: <Widget>[
-                        _buildPickerOption(context, icon: Icons.photo_camera_rounded, label: 'Kamera',
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            _pickImageAndIdentify(ImageSource.camera);
-                          },
-                        ),
-                        _buildPickerOption(context, icon: Icons.photo_library_rounded, label: 'Galeri',
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            _pickImageAndIdentify(ImageSource.gallery);
-                          },
-                        ),
+                        _buildPickerOption(context, icon: Icons.photo_camera_rounded, label: 'Kamera', onTap: () {
+                          Navigator.of(context).pop();
+                          _pickImageAndIdentify(ImageSource.camera);
+                        }),
+                        _buildPickerOption(context, icon: Icons.photo_library_rounded, label: 'Galeri', onTap: () {
+                          Navigator.of(context).pop();
+                          _pickImageAndIdentify(ImageSource.gallery);
+                        }),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -497,10 +422,7 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context).primaryColor.withAlpha(26),
-              ),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).primaryColor.withAlpha(26)),
               child: Icon(icon, color: Theme.of(context).primaryColor, size: 32),
             ),
             const SizedBox(height: 12),
