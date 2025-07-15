@@ -43,7 +43,8 @@ class InfoCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  // <<-- BURASI DEĞİŞTİ (Başlık rengi koyulaştırıldı) -->>
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -54,9 +55,14 @@ class InfoCard extends StatelessWidget {
                 if (buttonLabel != null && onButtonPressed != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: TextButton(
+                    // <<-- BURASI DEĞİŞTİ (Buton ikonu ve rengi eklendi) -->>
+                    child: TextButton.icon(
                       onPressed: onButtonPressed,
-                      child: Text(buttonLabel!),
+                      icon: const Icon(Icons.question_mark_rounded, size: 18), // Soru işareti ikonu
+                      label: Text(buttonLabel!),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.blue.shade700, // Okunabilir mavi tonu
+                      ),
                     ),
                   ),
               ],

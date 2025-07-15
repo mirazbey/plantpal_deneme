@@ -1,23 +1,25 @@
-// lib/services/database_service.dart (HATALARI DÜZELTİLMİŞ HALİ)
+// lib/services/database_service.dart (VERİTABANI VERSİYON 3)
 
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart'; // print yerine debugPrint için
+import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:plantpal/models/plant_record.dart';
 import 'package:plantpal/models/reminder.dart';
-import 'package:plantpal/models/journal_entry.dart'; // <-- HATA GİDEREN SATIR
+import 'package:plantpal/models/journal_entry.dart';
 
 class DatabaseService {
+  // ... (instance, _database, vb. aynı kalıyor)
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
   DatabaseService._init();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -28,10 +30,11 @@ class DatabaseService {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    // Veritabanı sürümünü 2'ye çıkarıyoruz çünkü yeni bir tablo ekledik.
-    return await openDatabase(path, version: 2, onCreate: _createDB, onUpgrade: _onUpgradeDB);
+    // Veritabanı sürümünü 3'e çıkarıyoruz
+    return await openDatabase(path, version: 3, onCreate: _createDB, onUpgrade: _onUpgradeDB);
   }
 
+  // onCreate, sadece uygulama ilk kez kurulduğunda çalışır
   Future _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE plants ( 
@@ -40,24 +43,37 @@ class DatabaseService {
         light TEXT NOT NULL, date TEXT NOT NULL, nickname TEXT, tags TEXT
       )
     ''');
-    await db.execute('''
-      CREATE TABLE reminders (
-        id INTEGER PRIMARY KEY, plantId TEXT NOT NULL, plantNickname TEXT NOT NULL,
-        imagePath TEXT NOT NULL, reminderDate TEXT NOT NULL
-      )
-    ''');
-    // --- YENİ EKLENEN TABLO ---
+    await _createRemindersTable(db);
     await _createJournalTable(db);
   }
 
-  // --- YENİ: Yükseltme Fonksiyonu ---
-  // Uygulama güncellendiğinde veritabanı şemasını da günceller.
+  // onUpgrade, versiyon numarası arttığında çalışır
   Future _onUpgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await _createJournalTable(db);
     }
+    if (oldVersion < 3) {
+      // Sürüm 3'e geçerken reminders tablosunu güncelliyoruz
+      await db.execute("DROP TABLE IF EXISTS reminders");
+      await _createRemindersTable(db);
+    }
   }
 
+  // Hatırlatıcı tablosunu oluşturan yardımcı fonksiyon
+  Future<void> _createRemindersTable(Database db) async {
+     await db.execute('''
+      CREATE TABLE reminders (
+        id INTEGER PRIMARY KEY,
+        plantId TEXT NOT NULL,
+        plantNickname TEXT NOT NULL,
+        imagePath TEXT NOT NULL,
+        reminderDate TEXT NOT NULL,
+        intervalDays INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+  }
+  
+  // ... (_createJournalTable ve diğer fonksiyonlar aynı)
   Future<void> _createJournalTable(Database db) async {
     await db.execute('''
       CREATE TABLE journal_entries (
@@ -70,11 +86,22 @@ class DatabaseService {
     ''');
   }
 
+  // insertReminder ve updateReminder (YENİ)
+  Future<void> insertReminder(Reminder reminder) async {
+    final db = await instance.database;
+    await db.insert('reminders', reminder.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
 
+  Future<void> updateReminder(Reminder reminder) async {
+    final db = await instance.database;
+    await db.update('reminders', reminder.toMap(), where: 'id = ?', whereArgs: [reminder.id]);
+  }
+
+  // Diğer tüm fonksiyonlar aynı kalabilir...
   Future<void> insertPlant(PlantRecord plant) async {
     final db = await instance.database;
     await db.insert('plants', plant.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
-
     final user = _auth.currentUser;
     if (user != null) {
       try {
@@ -111,18 +138,13 @@ class DatabaseService {
     }
   }
 
-  // ... diğer fonksiyonlar (getAllPlants, insertReminder, vb.) aynı kalabilir ...
   Future<List<PlantRecord>> getAllPlants() async {
     final db = await instance.database;
     const orderBy = 'date DESC';
     final result = await db.query('plants', orderBy: orderBy);
     return result.map((json) => PlantRecord.fromMap(json)).toList();
   }
-  Future<void> insertReminder(Reminder reminder) async {
-    final db = await instance.database;
-    await db.insert('reminders', reminder.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
-  }
+  
   Future<List<Reminder>> getAllReminders() async {
     final db = await instance.database;
     final result = await db.query('reminders', orderBy: 'reminderDate ASC');
@@ -149,8 +171,6 @@ class DatabaseService {
     }
   }
 
-
-  // --- YENİ FONKSİYONLAR ---
   Future<void> addJournalEntry(JournalEntry entry) async {
     final db = await instance.database;
     await db.insert('journal_entries', entry.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
@@ -208,4 +228,5 @@ class DatabaseService {
     final db = await instance.database;
     db.close();
   }
+
 }

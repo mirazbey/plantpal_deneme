@@ -1,10 +1,10 @@
-// lib/pages/settings_page.dart (TEMA SEÇİMİ EKLENMİŞ SON HALİ)
+// lib/pages/settings_page.dart (ÖĞRETİCİ TAMAMEN KALDIRILMIŞ HALİ)
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:plantpal/pages/reminders_list_page.dart';
 import 'package:plantpal/services/auth_service.dart';
-import 'package:plantpal/services/theme_provider.dart';
 import 'package:provider/provider.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -13,7 +13,6 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
-    final themeProvider = Provider.of<ThemeProvider>(context);
     final User? user = authService.currentUser;
 
     return Scaffold(
@@ -24,10 +23,7 @@ class SettingsPage extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              'Uygulama Ayarları',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
-            ),
+            child: Text('Uygulama Ayarları', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
           ListTile(
             leading: const Icon(Icons.notifications_active_outlined),
@@ -35,69 +31,23 @@ class SettingsPage extends StatelessWidget {
             subtitle: const Text('Kurulu sulama hatırlatıcılarını görüntüle'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const RemindersListPage()),
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const RemindersListPage()));
             },
           ),
           const Divider(height: 1),
           ListTile(
-            leading: const Icon(Icons.palette_outlined),
-            title: const Text('Görünüm'),
-            subtitle: Text(_getThemeString(themeProvider.themeMode)),
-            onTap: () {
-              // --- TEMA SEÇİM DİYALOĞUNU GÖSTER ---
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Tema Seçin'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      RadioListTile<ThemeMode>(
-                        title: const Text('Sistem Varsayılanı'),
-                        value: ThemeMode.system,
-                        groupValue: themeProvider.themeMode,
-                        onChanged: (value) {
-                          if (value != null) themeProvider.setTheme(value);
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                      RadioListTile<ThemeMode>(
-                        title: const Text('Açık Tema'),
-                        value: ThemeMode.light,
-                        groupValue: themeProvider.themeMode,
-                        onChanged: (value) {
-                          if (value != null) themeProvider.setTheme(value);
-                           Navigator.of(context).pop();
-                        },
-                      ),
-                      RadioListTile<ThemeMode>(
-                        title: const Text('Karanlık Tema'),
-                        value: ThemeMode.dark,
-                        groupValue: themeProvider.themeMode,
-                        onChanged: (value) {
-                           if (value != null) themeProvider.setTheme(value);
-                           Navigator.of(context).pop();
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              );
+            leading: const Icon(Icons.location_on_outlined),
+            title: const Text('Konum Servisleri'),
+            subtitle: const Text('Cihazın konum ayarlarını aç'),
+            trailing: const Icon(Icons.launch),
+            onTap: () async {
+              await Geolocator.openLocationSettings();
             },
           ),
-
           const SizedBox(height: 20),
-
-          // --- HESAP BÖLÜMÜ ---
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              'Hesap',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
-            ),
+            child: Text('Hesap', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ),
           if (user == null)
             ListTile(
@@ -112,10 +62,7 @@ class SettingsPage extends StatelessWidget {
             Column(
               children: [
                 ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: NetworkImage(user.photoURL ?? ''),
-                    radius: 20,
-                  ),
+                  leading: CircleAvatar(backgroundImage: NetworkImage(user.photoURL ?? ''), radius: 20),
                   title: Text(user.displayName ?? 'Kullanıcı'),
                   subtitle: Text(user.email ?? 'E-posta bilgisi yok'),
                 ),
@@ -131,17 +78,5 @@ class SettingsPage extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  // Tema modunu okunabilir bir metne çeviren yardımcı fonksiyon
-  String _getThemeString(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
-        return 'Açık Tema';
-      case ThemeMode.dark:
-        return 'Karanlık Tema';
-      case ThemeMode.system:
-        return 'Sistem Varsayılanı';
-    }
   }
 }

@@ -1,7 +1,7 @@
-// lib/pages/chatbot_page.dart (YAPAY ZEKA BAĞLANMIŞ HALİ)
+// lib/pages/chatbot_page.dart (NEŞELİ GİRİŞ MESAJI EKLENMİŞ HALİ)
 
 import 'package:flutter/material.dart';
-import 'package:plantpal/services/gemini_service.dart'; // Gemini servisimizi import ediyoruz
+import 'package:plantpal/services/gemini_service.dart';
 
 class ChatMessage {
   final String text;
@@ -25,7 +25,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
   @override
   void initState() {
     super.initState();
-    _addMessage("Merhaba! Ben PlantPal. Bitki bakımıyla ilgili her konuda sana yardımcı olabilirim. Ne öğrenmek istersin?", false);
+    // --- YENİ VE NEŞELİ GİRİŞ MESAJI ---
+    _addMessage("Selam! Ben Botanik Uzmanı🌿, senin kişisel bitki dostunum! Merak ettiğin her şeyi sorabilirsin, yapraklar, çiçekler, toprak... Hadi başlayalım! 😉", false);
   }
 
   void _addMessage(String text, bool isUser, {bool isLoading = false}) {
@@ -39,12 +40,10 @@ class _ChatbotPageState extends State<ChatbotPage> {
     if (text.trim().isEmpty) return;
     _textController.clear();
 
-    _addMessage(text, true, isLoading: true); // Mesajı ekle ve yükleme animasyonunu başlat
+    _addMessage(text, true, isLoading: true);
 
-    // Gemini servisinden cevap al
     final response = await GeminiService.getChatbotResponse(_messages);
 
-    // Gemini'den gelen cevabı ekle ve yükleme animasyonunu durdur
     _addMessage(response ?? "Üzgünüm, bir sorun oluştu.", false, isLoading: false);
   }
 
@@ -87,7 +86,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
           BoxShadow(
             offset: const Offset(0, -1),
             blurRadius: 4,
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13),
           )
         ],
       ),
@@ -100,12 +99,12 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 decoration: const InputDecoration.collapsed(
                   hintText: 'Bir mesaj yazın...',
                 ),
-                onSubmitted: _isLoading ? null : _handleSubmitted, // Yüklenirken gönderimi engelle
+                onSubmitted: _isLoading ? null : _handleSubmitted,
               ),
             ),
             IconButton(
               icon: const Icon(Icons.send),
-              onPressed: _isLoading ? null : () => _handleSubmitted(_textController.text), // Yüklenirken butonu pasif yap
+              onPressed: _isLoading ? null : () => _handleSubmitted(_textController.text),
             ),
           ],
         ),

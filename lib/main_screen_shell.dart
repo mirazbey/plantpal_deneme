@@ -1,4 +1,4 @@
-// lib/main_screen_shell.dart (TÜM UYARILARI GİDERİLMİŞ SON HALİ)
+// lib/main_screen_shell.dart (EN SON STABİL ÇALIŞAN VERSİYON)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -15,12 +15,11 @@ import 'package:plantpal/services/gemini_service.dart';
 import 'package:plantpal/services/location_service.dart';
 import 'package:plantpal/services/weather_service.dart';
 import 'package:plantpal/theme/app_theme.dart';
-
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:plantpal/alarm_callback.dart';
 import 'package:plantpal/models/reminder.dart';
-import 'package:plantpal/pages/plant_saved_page.dart'; // <-- HATA GİDEREN SATIR
-
+import 'package:plantpal/pages/chatbot_page.dart';
+import 'package:plantpal/pages/plant_saved_page.dart';
 
 class MainScreenShell extends StatefulWidget {
   const MainScreenShell({super.key});
@@ -28,7 +27,7 @@ class MainScreenShell extends StatefulWidget {
   State<MainScreenShell> createState() => _MainScreenShellState();
 }
 
-class _MainScreenShellState extends State<MainScreenShell> {
+class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProviderStateMixin {
   bool _showSplash = true;
   int _pageIndex = 1;
   File? _selectedImage;
@@ -37,11 +36,28 @@ class _MainScreenShellState extends State<MainScreenShell> {
   List<PlantPrediction> _predictions = [];
   int _selectedPredictionIndex = 0;
   List<PlantRecord> _plantHistory = [];
+  
+  late AnimationController _animationController;
+  late Animation<double> _opacityAnimation;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    )..repeat(reverse: true);
+    _opacityAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    
     _initializeApp();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _initializeApp() async {
@@ -57,16 +73,15 @@ class _MainScreenShellState extends State<MainScreenShell> {
         _plantHistory = localPlants;
       });
     }
-
     final cloudPlants = await DatabaseService.instance.getPlantsFromCloud();
     if (mounted && cloudPlants.isNotEmpty) {
-       final allPlants = await DatabaseService.instance.getAllPlants();
-       setState(() {
-         _plantHistory = allPlants;
-       });
+      final allPlants = await DatabaseService.instance.getAllPlants();
+      setState(() {
+        _plantHistory = allPlants;
+      });
     }
   }
-
+  
   List<PlantPrediction> _parsePredictions(String rawText) {
     final List<PlantPrediction> predictions = [];
     final parts = rawText.split(RegExp(r'---TAHMİN \d+---'));
@@ -95,7 +110,7 @@ class _MainScreenShellState extends State<MainScreenShell> {
     }
     return predictions;
   }
-
+  
   Future<void> _pickImageAndIdentify(ImageSource source) async {
     setState(() => _pageIndex = 1);
     _processImageIdentification(source);
@@ -115,10 +130,19 @@ class _MainScreenShellState extends State<MainScreenShell> {
       _plantInfo = "Konum alınıyor...";
       _predictions = [];
     });
+    
     final locationService = LocationService();
     final Position? position = await locationService.getCurrentLocation();
     String? weatherString = "Hava durumu bilgisi alınamadı.";
-    if (position != null && mounted) {
+
+    if (position == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Konum kapalı. Daha iyi tavsiyeler için açabilirsiniz.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } else if (position != null && mounted) {
       setState(() => _plantInfo = "Hava durumu alınıyor...");
       final weatherService = WeatherService();
       final weatherData = await weatherService.getCurrentWeather(position);
@@ -128,6 +152,7 @@ class _MainScreenShellState extends State<MainScreenShell> {
         weatherString = "$description, $temp °C";
       }
     }
+
     if (!mounted) return;
     setState(() => _plantInfo = "Bitki tanınıyor, lütfen bekleyin...");
     final result = await GeminiService.getPlantInfo(_selectedImage!, weatherString);
@@ -150,31 +175,26 @@ class _MainScreenShellState extends State<MainScreenShell> {
 
   Future<void> _onSaveButtonPressed() async {
     if (!mounted) return;
-
     if (_predictions.isNotEmpty && _selectedImage != null) {
       final bestPrediction = _predictions[_selectedPredictionIndex];
       final PlantRecord? newRecord = await _showSavePlantDialog(
         image: _selectedImage!,
         plantInfo: {
-          'Bitki Adı': bestPrediction.name,
-          'Sağlık Durumu': bestPrediction.health,
-          'Sulama Sıklığı': bestPrediction.watering,
-          'Günün Tavsiyesi': bestPrediction.advice,
+          'Bitki Adı': bestPrediction.name, 'Sağlık Durumu': bestPrediction.health,
+          'Sulama Sıklığı': bestPrediction.watering, 'Günün Tavsiyesi': bestPrediction.advice,
           'Işık İhtiyacı': bestPrediction.light,
         },
       );
       if (newRecord != null) {
         await _addPlantToHistory(newRecord);
         if (mounted) {
-                // --- YENİ YÖNLENDİRME KODU ---
           Navigator.of(context).push(
             MaterialPageRoute(builder: (context) => const PlantSavedPage()),
           );
-          // Hatırlatıcı kurma seçeneğini yine de bir SnackBar ile sunabiliriz.
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+             SnackBar(
               content: Text('${newRecord.nickname} için hatırlatıcı kurulsun mu?'),
-              action: SnackBarAction(
+               action: SnackBarAction(
                 label: 'Evet, Kur',
                 onPressed: () => _scheduleAlarm(newRecord),
               ),
@@ -186,153 +206,158 @@ class _MainScreenShellState extends State<MainScreenShell> {
     }
   }
 
-    Future<PlantRecord?> _showSavePlantDialog(
-        {required File image, required Map<String, String> plantInfo}) async {
-      if (!mounted) return null;
-
-      final nicknameController = TextEditingController();
-      const List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever', 'Işık Sever', 'Nemli Toprak Sever'];
-      List<String> selectedTags = [];
-      return showDialog<PlantRecord>(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return AlertDialog(
-            title: const Text('Bitkinizi Kaydedin'),
-            content: SingleChildScrollView(
-              child: StatefulBuilder(
-                builder: (context, setState) {
-                  return ListBody(
-                    children: <Widget>[
-                      Text('"${plantInfo['Bitki Adı']}" için bir takma ad belirleyin:'),
-                      TextField(
-                        controller: nicknameController,
-                        decoration: const InputDecoration(hintText: 'Örn: Yeşil Dostum'),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text('Etiketler seçin:'),
-                      Wrap(
-                        spacing: 8.0,
-                        children: availableTags.map((tag) {
-                          return FilterChip(
-                            label: Text(tag),
-                            selected: selectedTags.contains(tag),
-                            onSelected: (bool selected) {
-                              setState(() {
-                                if (selected) { selectedTags.add(tag); }
-                                else { selectedTags.remove(tag); }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  );
-                },
-              ),
+  Future<PlantRecord?> _showSavePlantDialog(
+      {required File image, required Map<String, String> plantInfo}) async {
+    if (!mounted) return null;
+    final nicknameController = TextEditingController();
+    const List<String> availableTags = ['Salon Bitkisi', 'Balkon', 'Az Su İster', 'Gölge Sever', 'Işık Sever', 'Nemli Toprak Sever'];
+    List<String> selectedTags = [];
+    return showDialog<PlantRecord>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Bitkinizi Kaydedin'),
+          content: SingleChildScrollView(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return ListBody(
+                  children: <Widget>[
+                    Text('"${plantInfo['Bitki Adı']}" için bir takma ad belirleyin:'),
+                    TextField(
+                      controller: nicknameController,
+                      decoration: const InputDecoration(hintText: 'Örn: Yeşil Dostum'),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Etiketler seçin:'),
+                    Wrap(
+                      spacing: 8.0,
+                      children: availableTags.map((tag) {
+                        return FilterChip(
+                          label: Text(tag),
+                          selected: selectedTags.contains(tag),
+                          onSelected: (bool selected) {
+                            setState(() {
+                              if (selected) { selectedTags.add(tag); }
+                              else { selectedTags.remove(tag); }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                );
+              },
             ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('İptal'),
-                onPressed: () => Navigator.of(dialogContext).pop(null),
-              ),
-              TextButton(
-                child: const Text('Kaydet'),
-                onPressed: () {
-                  final record = PlantRecord(
-                    image: image, plantInfo: plantInfo, date: DateTime.now(),
-                    nickname: nicknameController.text.isNotEmpty ? nicknameController.text : plantInfo['Bitki Adı']!,
-                    tags: selectedTags,
-                  );
-                  Navigator.of(dialogContext).pop(record);
-                },
-              ),
-            ],
-          );
-        },
-      );
-    }
-
-    Future<void> _scheduleAlarm(PlantRecord record) async {
-      final BuildContext currentContext = context;
-
-      final Duration? selectedDuration = await showDialog<Duration>(
-        context: currentContext,
-        builder: (context) {
-          return SimpleDialog(
-            title: Text('${record.nickname} için hatırlatıcı sıklığı seçin'),
-            children: <String, Duration>{
-              'Bugün': const Duration(days: 0),
-              '1 Gün Sonra': const Duration(days: 1),
-              '3 Gün Sonra': const Duration(days: 3),
-              '1 Hafta Sonra': const Duration(days: 7),
-            }.entries.map((entry) {
-              return SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, entry.value),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text(entry.key),
-                ),
-              );
-            }).toList(),
-          );
-        },
-      );
-
-      if (selectedDuration == null || !currentContext.mounted) return;
-
-      final TimeOfDay? pickedTime = await showTimePicker(
-        context: currentContext,
-        initialTime: TimeOfDay.now(),
-      );
-
-      if (pickedTime == null || !currentContext.mounted) return;
-
-      final now = DateTime.now();
-      final targetDay = now.add(selectedDuration);
-      var scheduledDate = DateTime(
-        targetDay.year,
-        targetDay.month,
-        targetDay.day,
-        pickedTime.hour,
-        pickedTime.minute,
-      );
-
-      if (scheduledDate.isBefore(now)) {
-        scheduledDate = scheduledDate.add(const Duration(days: 1));
-      }
-
-      final alarmId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-
-      await AndroidAlarmManager.oneShotAt(
-        scheduledDate,
-        alarmId,
-        fireAlarm,
-        exact: true,
-        wakeup: true,
-        allowWhileIdle: true,
-        rescheduleOnReboot: true,
-      );
-
-      final newReminder = Reminder(
-        id: alarmId,
-        plantId: record.id,
-        plantNickname: record.nickname,
-        imagePath: record.image.path,
-        reminderDate: scheduledDate,
-      );
-      await DatabaseService.instance.insertReminder(newReminder);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${record.nickname} için hatırlatıcı kuruldu!')),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('İptal'),
+              onPressed: () => Navigator.of(dialogContext).pop(null),
+            ),
+            TextButton(
+              child: const Text('Kaydet'),
+              onPressed: () {
+                final record = PlantRecord(
+                  image: image, plantInfo: plantInfo, date: DateTime.now(),
+                  nickname: nicknameController.text.isNotEmpty ? nicknameController.text : plantInfo['Bitki Adı']!,
+                  tags: selectedTags,
+                );
+                Navigator.of(dialogContext).pop(record);
+              },
+            ),
+          ],
         );
-      }
+      },
+    );
+  }
+
+  Future<void> _scheduleAlarm(PlantRecord record) async {
+    final currentContext = context;
+    if (!currentContext.mounted) return;
+    final Map<String, int> reminderOptions = {
+      'Tek seferlik (Bugün)': 0, 'Her gün': 1, 'Her 3 günde bir': 3,
+      'Her 5 günde bir': 5, 'Haftada bir': 7,
+    };
+    final int? selectedInterval = await showDialog<int>(
+      context: currentContext,
+      builder: (dialogContext) {
+        return SimpleDialog(
+          title: Text('${record.nickname} için sulama sıklığı'),
+          children: reminderOptions.entries.map((entry) {
+            return SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogContext, entry.value),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(entry.key),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+    if (selectedInterval == null) return;
+    if (!currentContext.mounted) return;
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: currentContext,
+      initialTime: TimeOfDay.now(),
+    );
+    if (pickedTime == null) return;
+    if (!currentContext.mounted) return;
+    final intervalDays = selectedInterval;
+    final now = DateTime.now();
+    DateTime scheduledDate = DateTime(now.year, now.month, now.day, pickedTime.hour, pickedTime.minute);
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
+    final alarmId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    await AndroidAlarmManager.oneShotAt(
+      scheduledDate, alarmId, fireAlarm,
+      exact: true, wakeup: true, allowWhileIdle: true, rescheduleOnReboot: true,
+    );
+    final newReminder = Reminder(
+      id: alarmId, plantId: record.id, plantNickname: record.nickname,
+      imagePath: record.image.path, reminderDate: scheduledDate, intervalDays: intervalDays,
+    );
+    await DatabaseService.instance.insertReminder(newReminder);
+    if (currentContext.mounted) {
+      ScaffoldMessenger.of(currentContext).showSnackBar(
+        SnackBar(content: Text('${record.nickname} için hatırlatıcı kuruldu!')),
+      );
+    }
+  }
 
   Future<void> _addPlantToHistory(PlantRecord record) async {
     await DatabaseService.instance.insertPlant(record);
     await _refreshPlants();
+  }
+  
+  Widget _buildFlashingTextBubble({required VoidCallback onTap}) {
+    return FittedBox(
+      fit: BoxFit.contain,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Center(
+          child: FadeTransition(
+            opacity: _opacityAnimation,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("Botanik", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, height: 1.1)),
+                  Text("Uzmanı", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, height: 1.1)),
+                ],
+              )
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -343,31 +368,46 @@ class _MainScreenShellState extends State<MainScreenShell> {
     final pages = [
       MyPlantsPage(plantHistory: _plantHistory, onPlantsUpdated: _refreshPlants),
       HomeScreen(
-        selectedImage: _selectedImage,
-        plantInfo: _plantInfo,
-        isLoading: _isLoading,
-        predictions: _predictions,
-        selectedPredictionIndex: _selectedPredictionIndex,
+        selectedImage: _selectedImage, plantInfo: _plantInfo, isLoading: _isLoading,
+        predictions: _predictions, selectedPredictionIndex: _selectedPredictionIndex,
         onPredictionSelected: (index) => setState(() => _selectedPredictionIndex = index),
         onClear: () => setState(() {
           _selectedImage = null; _predictions = [];
           _plantInfo = "Tanımam için bana bir bitki göster!";
         }),
         onSave: _onSaveButtonPressed,
-        onScheduleReminder: () {},
+        onScheduleReminder: () {
+           if (_predictions.isNotEmpty && _selectedImage != null) {
+             final bestPrediction = _predictions[_selectedPredictionIndex];
+             final tempRecord = PlantRecord(
+               id: 'temp_${DateTime.now().millisecondsSinceEpoch}', image: _selectedImage!,
+               nickname: bestPrediction.name,
+               plantInfo: {
+                 'Bitki Adı': bestPrediction.name, 'Sağlık Durumu': bestPrediction.health,
+                 'Sulama Sıklığı': bestPrediction.watering, 'Günün Tavsiyesi': bestPrediction.advice,
+                 'Işık İhtiyacı': bestPrediction.light,
+               },
+               date: DateTime.now(),
+             );
+             _scheduleAlarm(tempRecord);
+           }
+        },
       ),
     ];
     return Scaffold(
-      extendBody: true,
       appBar: AppBar(
-        title: Text(_pageIndex == 0 ? 'Bitkilerim' : 'Bitki Tanımla'), // Basit metin
+        leading: _pageIndex == 1
+            ? _buildFlashingTextBubble(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ChatbotPage()),
+                  );
+                },
+              )
+            : null,
+        title: Text(_pageIndex == 0 ? 'Bitkilerim' : 'Bitki Tanımla'),
         actions: [
-          if (_pageIndex == 1 && _predictions.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline_rounded, size: 30),
-              tooltip: 'Koleksiyona Kaydet',
-              onPressed: _onSaveButtonPressed,
-            ),
           IconButton(
             icon: const Icon(Icons.settings_rounded),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage())),
@@ -402,36 +442,25 @@ class _MainScreenShellState extends State<MainScreenShell> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 50,
-                      height: 5,
-                      // --- DÜZELTME 1 ---
+                      width: 50, height: 5,
                       decoration: BoxDecoration(
-                        color: Colors.grey.withAlpha(77), // withOpacity(0.3) yerine
+                        color: Colors.grey.withAlpha(77),
                         borderRadius: BorderRadius.circular(2.5),
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
-                      'Bir Fotoğraf Seçin',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                    const Text('Bir Fotoğraf Seçin', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: <Widget>[
-                        _buildPickerOption(
-                          context,
-                          icon: Icons.photo_camera_rounded,
-                          label: 'Kamera',
+                        _buildPickerOption(context, icon: Icons.photo_camera_rounded, label: 'Kamera',
                           onTap: () {
                             Navigator.of(context).pop();
                             _pickImageAndIdentify(ImageSource.camera);
                           },
                         ),
-                        _buildPickerOption(
-                          context,
-                          icon: Icons.photo_library_rounded,
-                          label: 'Galeri',
+                        _buildPickerOption(context, icon: Icons.photo_library_rounded, label: 'Galeri',
                           onTap: () {
                             Navigator.of(context).pop();
                             _pickImageAndIdentify(ImageSource.gallery);
@@ -470,8 +499,7 @@ class _MainScreenShellState extends State<MainScreenShell> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                // --- DÜZELTME 2 ---
-                color: Theme.of(context).primaryColor.withAlpha(26), // withOpacity(0.1) yerine
+                color: Theme.of(context).primaryColor.withAlpha(26),
               ),
               child: Icon(icon, color: Theme.of(context).primaryColor, size: 32),
             ),

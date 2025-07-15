@@ -1,4 +1,4 @@
-// lib/main.dart (YAZIM HATASI DÜZELTİLMİŞ HALİ)
+// lib/main.dart (SADELEŞTİRİLMİŞ HALİ)
 
 import 'dart:async';
 import 'dart:ui';
@@ -11,12 +11,8 @@ import 'package:plantpal/theme/app_theme.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/date_symbol_data_local.dart';
-
-// --- DÜZELTİLMİŞ SATIR ---
-import 'package:firebase_core/firebase_core.dart'; 
-// --------------------------
+import 'package:firebase_core/firebase_core.dart';
 import 'package:plantpal/services/auth_service.dart';
-import 'package:plantpal/services/theme_provider.dart';
 import 'package:provider/provider.dart';
 
 Future<void> main() async {
@@ -27,50 +23,32 @@ Future<void> main() async {
   await AndroidAlarmManager.initialize();
   await initializeDateFormatting('tr_TR', null);
 
+  // Sadece AuthService için Provider kullanıyoruz
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (context) => AuthService()),
-        ChangeNotifierProvider(create: (context) => ThemeProvider()),
-      ],
+    ChangeNotifierProvider(
+      create: (context) => AuthService(),
       child: const MyApp(),
     ),
   );
 }
 
-// ... GERİ KALAN TÜM KOD AYNI ...
-Future<void> initializeService() async {
-  final service = FlutterBackgroundService();
+// ... initializeService ve onStart fonksiyonları aynı kalıyor ...
 
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'plantpal_service_channel',
-    'PlantPal Servisi',
-    description: 'Uygulamanın düzgün çalışması için gereklidir.',
-    importance: Importance.low,
-  );
-
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(channel);
-
-  await service.configure(
-    androidConfiguration: AndroidConfiguration(
-      onStart: onStart,
-      autoStart: false,
-      isForegroundMode: true,
-      notificationChannelId: 'plantpal_service_channel',
-      initialNotificationTitle: 'PlantPal Çalışıyor',
-      initialNotificationContent: 'Hatırlatıcınız hazırlanıyor...',
-      foregroundServiceNotificationId: 888,
-    ),
-    iosConfiguration: IosConfiguration(autoStart: false, onForeground: onStart),
-  );
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'PlantPal',
+      debugShowCheckedModeBanner: false,
+      // Sadece tek temamızı bağlıyoruz
+      theme: AppTheme.lightTheme,
+      home: const MainScreenShell(),
+    );
+  }
 }
 
+// ... (onStart ve initializeService fonksiyonları burada olmalı)
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
@@ -88,19 +66,31 @@ void onStart(ServiceInstance service) async {
   });
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-  @override
-  Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+Future<void> initializeService() async {
+  final service = FlutterBackgroundService();
 
-    return MaterialApp(
-      title: 'PlantPal',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeProvider.themeMode,
-      home: const MainScreenShell(),
-    );
-  }
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'plantpal_service_channel', 'PlantPal Servisi',
+    description: 'Uygulamanın düzgün çalışması için gereklidir.',
+    importance: Importance.low,
+  );
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart, autoStart: false, isForegroundMode: true,
+      notificationChannelId: 'plantpal_service_channel',
+      initialNotificationTitle: 'PlantPal Çalışıyor',
+      initialNotificationContent: 'Hatırlatıcınız hazırlanıyor...',
+      foregroundServiceNotificationId: 888,
+    ),
+    iosConfiguration: IosConfiguration(autoStart: false, onForeground: onStart),
+  );
 }

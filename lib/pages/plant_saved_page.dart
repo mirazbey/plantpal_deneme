@@ -17,8 +17,8 @@ class _PlantSavedPageState extends State<PlantSavedPage> {
   @override
   void initState() {
     super.initState();
-    // 3 saniye sonra otomatik olarak bir önceki sayfaya dön
-    Timer(const Duration(seconds: 3), () {
+    // 4 saniye sonra otomatik olarak bir önceki sayfaya dön
+    Timer(const Duration(seconds: 4), () {
       if (mounted) {
         Navigator.of(context).pop();
       }

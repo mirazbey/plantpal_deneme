@@ -39,10 +39,10 @@ dependencies:
   intl: ^0.19.0
   provider: ^6.1.2
   flutter_image_compress: ^2.3.0
-  shared_preferences: ^2.2.3
   lottie: ^3.1.2
   animated_text_kit: ^4.2.2
   google_fonts: ^6.2.1
+  flutter_native_splash: ^2.4.6
   
 dev_dependencies:
   flutter_test:
@@ -53,11 +53,34 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/
+    - assets/images/ # Bu satırın var ve doğru girintide olduğundan emin olun
 
 # --- FONTS BÖLÜMÜ ARTIK GEREKLİ OLMADIĞI İÇİN TAMAMEN KALDIRILDI ---
 
-flutter_icons:
-  android: "launcher_icon"
+# pubspec.yaml dosyasının sonuna bunu ekleyin
+
+# pubspec.yaml dosyasının sonuna bunu ekleyin
+
+flutter_launcher_icons:
+  android: true
   ios: true
-  image_path: "assets/images/logo.png"
+  image_path: "assets/images/icon.png" # Yeni ve temiz ikon dosyamızın yolu
+  remove_alpha_ios: true # iOS için şeffaflık sorununu önler
+
+  # pubspec.yaml dosyasının sonuna ekleyin
+
+# pubspec.yaml dosyasındaki flutter_native_splash bölümünü bununla değiştirin
+
+flutter_native_splash:
+  # Açık mod için arka plan rengi
+  color: "#FFFFFF"
+
+  # KARANLIK MOD İÇİN de arka plan rengi (EN ÖNEMLİ SATIR)
+  color_dark: "#FFFFFF"
+
+  # Ortada görünecek olan logonuz
+  image: assets/images/icon.png
+
+  # Hem Android hem de iOS için oluştur
+  android: true
+  ios: true
