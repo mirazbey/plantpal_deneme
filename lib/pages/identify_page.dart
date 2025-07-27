@@ -1,7 +1,8 @@
-// lib/pages/identify_page.dart (HATIRLATICI BUTONU KALDIRILMIŞ HALİ)
+// lib/pages/identify_page.dart (İSTEKLERİNİZE GÖRE DÜZENLENMİŞ HALİ)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart'; // Google Fonts eklendi
 import 'package:lottie/lottie.dart';
 import 'package:plantpal/models/plant_prediction.dart';
 import 'package:plantpal/pages/photo_viewer_page.dart';
@@ -16,7 +17,6 @@ class HomeScreen extends StatelessWidget {
   final Function(int) onPredictionSelected;
   final VoidCallback onClear;
   final VoidCallback onSave;
-  // onScheduleReminder artık bu sayfada olmadığı için kaldırıldı.
 
   const HomeScreen({
     super.key,
@@ -35,29 +35,44 @@ class HomeScreen extends StatelessWidget {
     final selectedPrediction =
         predictions.isNotEmpty ? predictions[selectedPredictionIndex] : null;
 
-    // Stack artık gerekli değil, çünkü tek bir kaydırılabilir liste var.
+    // Ana ekran içeriği artık transparan bir arka plana sahip olacak
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 120.0), // Alt boşluk
+        padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 120.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            // Eğer resim seçilmediyse, animasyon ve karşılama metni gösterilir
             if (selectedImage == null)
               Column(
                 children: [
+                  // Güneş animasyonu
                   Lottie.asset('assets/images/Clear_Day.json', height: 250),
                   const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    // Yazı stili ve rengi güncellendi
                     child: Text(
                       "Merhaba! Tanımlamak istediğiniz bitkinin fotoğrafını çekin veya galeriden seçin.",
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                      style: GoogleFonts.montserrat( // Güzel bir font
+                        fontSize: 18,
+                        color: Colors.white, // Bembeyaz renk
+                        fontWeight: FontWeight.w600,
+                        shadows: [ // Okunabilirliği artırmak için hafif gölge
+                          const Shadow(
+                            blurRadius: 10.0,
+                            color: Colors.black54,
+                            offset: Offset(2.0, 2.0),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               )
             else
+              // Resim seçildiğinde gösterilecek kısım (değişiklik yok)
               GestureDetector(
                 onTap: () {
                   if (selectedImage != null) {
@@ -80,6 +95,8 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 24),
+
+            // Yükleme ve tahmin sonuçları kısımları aynı kalıyor...
             if (isLoading)
               Column(
                 children: [
