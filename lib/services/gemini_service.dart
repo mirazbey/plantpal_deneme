@@ -13,7 +13,7 @@ class GeminiService {
         throw Exception('HATA: Gemini API anahtarı bulunamadı. Lütfen --dart-define-from-file argümanını kontrol edin.');
       }
 
-      final model = GenerativeModel(model: 'gemini-1.5-flash-latest', apiKey: apiKey);
+      final model = GenerativeModel(model: 'gemini-2.0-flash', apiKey: apiKey);
       
       // --- YENİ VE UZMAN TALİMATI ---
       final promptText = 

@@ -12,6 +12,8 @@ class JournalEntry {
   final String note;
   final File? image; // Günlük kaydına eklenen fotoğraf (opsiyonel)
   final String? imageBase64; // Bulut için fotoğrafın metin hali
+  final String type; // <-- YENİ EKLENEN ALAN
+
 
   JournalEntry({
     required this.id,
@@ -20,6 +22,8 @@ class JournalEntry {
     required this.note,
     this.image,
     this.imageBase64,
+    this.type = 'Bakım', // <-- Varsayılan değer olarak 'Bakım' atandı
+
   });
 
   // Yerel veritabanına yazmak için Map'e dönüştürür
@@ -30,6 +34,8 @@ class JournalEntry {
       'date': date.toIso8601String(),
       'note': note,
       'imagePath': image?.path, // Sadece dosya yolunu kaydet
+      'type': type, // <-- Veritabanına eklemek için
+
     };
   }
 
@@ -42,6 +48,8 @@ class JournalEntry {
       note: map['note'],
       // Eğer bir resim yolu kaydedilmişse, onu File nesnesine dönüştür
       image: map['imagePath'] != null ? File(map['imagePath']) : null,
+      type: map['type'] ?? 'Bakım', // <-- Veritabanından okumak için
+      
     );
   }
 

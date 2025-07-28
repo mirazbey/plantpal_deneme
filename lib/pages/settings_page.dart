@@ -1,4 +1,4 @@
-// lib/pages/settings_page.dart (ÖĞRETİCİ TAMAMEN KALDIRILMIŞ HALİ)
+// lib/pages/settings_page.dart (SADECE AppBar SİLİNMİŞ NİHAİ HALİ)
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -16,9 +16,9 @@ class SettingsPage extends StatelessWidget {
     final User? user = authService.currentUser;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ayarlar'),
-      ),
+      // appBar: AppBar(   <-- SADECE BU 3 SATIR SİLİNDİ
+      //   title: const Text('Ayarlar'),
+      // ),
       body: ListView(
         children: [
           const Padding(

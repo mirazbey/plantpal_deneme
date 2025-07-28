@@ -30,8 +30,8 @@ class DatabaseService {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    // Veritabanı sürümünü 3'e çıkarıyoruz
-    return await openDatabase(path, version: 3, onCreate: _createDB, onUpgrade: _onUpgradeDB);
+    // Veritabanı sürümünü 4'e çıkarıyoruz
+    return await openDatabase(path, version: 4, onCreate: _createDB, onUpgrade: _onUpgradeDB);
   }
 
   // onCreate, sadece uygulama ilk kez kurulduğunda çalışır
@@ -49,15 +49,18 @@ class DatabaseService {
 
   // onUpgrade, versiyon numarası arttığında çalışır
   Future _onUpgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await _createJournalTable(db);
-    }
-    if (oldVersion < 3) {
-      // Sürüm 3'e geçerken reminders tablosunu güncelliyoruz
-      await db.execute("DROP TABLE IF EXISTS reminders");
-      await _createRemindersTable(db);
-    }
+  if (oldVersion < 2) {
+    await _createJournalTable(db);
   }
+  if (oldVersion < 3) {
+    await db.execute("DROP TABLE IF EXISTS reminders");
+    await _createRemindersTable(db);
+  }
+  // YENİ YÜKSELTME ADIMI
+  if (oldVersion < 4) {
+    await db.execute("ALTER TABLE journal_entries ADD COLUMN type TEXT NOT NULL DEFAULT 'Bakım'");
+  }
+}
 
   // Hatırlatıcı tablosunu oluşturan yardımcı fonksiyon
   Future<void> _createRemindersTable(Database db) async {
@@ -75,16 +78,17 @@ class DatabaseService {
   
   // ... (_createJournalTable ve diğer fonksiyonlar aynı)
   Future<void> _createJournalTable(Database db) async {
-    await db.execute('''
-      CREATE TABLE journal_entries (
-        id TEXT PRIMARY KEY,
-        plantId TEXT NOT NULL,
-        date TEXT NOT NULL,
-        note TEXT NOT NULL,
-        imagePath TEXT
-      )
-    ''');
-  }
+  await db.execute('''
+    CREATE TABLE journal_entries (
+      id TEXT PRIMARY KEY,
+      plantId TEXT NOT NULL,
+      date TEXT NOT NULL,
+      note TEXT NOT NULL,
+      imagePath TEXT,
+      type TEXT NOT NULL DEFAULT 'Bakım' -- // <-- EKLENEN YENİ SÜTUN
+    )
+  ''');
+}
 
   // insertReminder ve updateReminder (YENİ)
   Future<void> insertReminder(Reminder reminder) async {

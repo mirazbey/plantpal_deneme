@@ -7,19 +7,16 @@ import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:plantpal/services/auth_service.dart';
 import 'package:provider/provider.dart';
+import 'package:plantpal/theme/app_theme.dart';
 
 Future<void> main() async {
+  
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await AndroidAlarmManager.initialize();
   await initializeDateFormatting('tr_TR', null);
   
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => AuthService(),
-      child: const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -27,10 +24,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'PlantPal',
-      debugShowCheckedModeBanner: false,
-      home: MainScreenShell(), // <-- Uygulama her zaman buradan başlar.
+    // MaterialApp'i MultiProvider ile sarmalıyoruz
+    return MultiProvider(
+      providers: [
+        // AuthService'i tüm uygulamanın erişimine açıyoruz.
+        ChangeNotifierProvider(
+          create: (context) => AuthService(),
+        ),
+        // Gelecekte başka provider'lar eklemek isterseniz buraya ekleyebilirsiniz.
+      ],
+      child: MaterialApp(
+        title: 'PlantPal',
+        theme: AppTheme.lightTheme,
+        debugShowCheckedModeBanner: false,
+        home: const MainScreenShell(), 
+      ),
     );
   }
 }
