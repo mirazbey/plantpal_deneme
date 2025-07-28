@@ -43,6 +43,7 @@ dependencies:
   animated_text_kit: ^4.2.2
   google_fonts: ^6.2.1
   flutter_native_splash: ^2.4.6
+  shared_preferences: ^2.2.3
   
 dev_dependencies:
   flutter_test:
@@ -71,16 +72,16 @@ flutter_launcher_icons:
 
 # pubspec.yaml dosyasındaki flutter_native_splash bölümünü bununla değiştirin
 
+# Lütfen mevcut flutter_native_splash bölümünü silip bunu yapıştırın
 flutter_native_splash:
-  # Açık mod için arka plan rengi
+  # Açılış ekranının arka plan rengi
   color: "#FFFFFF"
-
-  # KARANLIK MOD İÇİN de arka plan rengi (EN ÖNEMLİ SATIR)
+  # Karanlık mod için arka plan rengi
   color_dark: "#FFFFFF"
 
-  # Ortada görünecek olan logonuz
+  # Kendi logonuzun yolu
   image: assets/images/icon.png
 
-  # Hem Android hem de iOS için oluştur
+  # Bu ayarların Android ve iOS için geçerli olduğunu belirtir
   android: true
   ios: true

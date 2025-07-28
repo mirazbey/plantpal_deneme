@@ -8,7 +8,7 @@ import 'package:plantpal/models/plant_prediction.dart';
 import 'package:plantpal/pages/photo_viewer_page.dart';
 import 'package:plantpal/widgets/info_card.dart';
 
-class HomeScreen extends StatelessWidget {
+class IdentifyPage extends StatelessWidget {
   final File? selectedImage;
   final String plantInfo;
   final bool isLoading;
@@ -18,7 +18,7 @@ class HomeScreen extends StatelessWidget {
   final VoidCallback onClear;
   final VoidCallback onSave;
 
-  const HomeScreen({
+  const IdentifyPage({
     super.key,
     required this.selectedImage,
     required this.plantInfo,

@@ -1,7 +1,9 @@
-// lib/main_screen_shell.dart (TÜM İSTEKLER VE HATA DÜZELTMESİ İLE SON HALİ)
+// lib/main_screen_shell.dart (NİHAİ VE HATASIZ SON HALİ)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:plantpal/pages/onboarding_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:plantpal/models/plant_prediction.dart';
@@ -10,7 +12,7 @@ import 'package:plantpal/pages/identify_page.dart';
 import 'package:plantpal/pages/my_plants_page.dart';
 import 'package:plantpal/pages/settings_page.dart';
 import 'package:plantpal/services/database_service.dart';
-import 'package:google_fonts/google_fonts.dart'; // HATA DÜZELTİLDİ
+import 'package:google_fonts/google_fonts.dart';
 import 'package:plantpal/services/gemini_service.dart';
 import 'package:plantpal/services/location_service.dart';
 import 'package:plantpal/services/weather_service.dart';
@@ -24,19 +26,18 @@ import 'package:plantpal/pages/plant_saved_page.dart';
 class MainScreenShell extends StatefulWidget {
   const MainScreenShell({super.key});
   @override
-  State<MainScreenShell> createState() => _MainScreenShellState();
+  State<MainScreenShell> createState() => MainScreenShellState();
 }
 
-class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProviderStateMixin {
-  bool _showSplash = true;
-  int _pageIndex = 1; // Başlangıç sayfası yine "Tanımla"
+class MainScreenShellState extends State<MainScreenShell> with SingleTickerProviderStateMixin {
+  bool _showSplash = true; 
+  int _pageIndex = 1;
   File? _selectedImage;
   String _plantInfo = "Tanımam için bana bir bitki göster!";
   bool _isLoading = false;
   List<PlantPrediction> _predictions = [];
   int _selectedPredictionIndex = 0;
   List<PlantRecord> _plantHistory = [];
-  
   late AnimationController _animationController;
   late Animation<double> _opacityAnimation;
 
@@ -50,7 +51,6 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
     _opacityAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    
     _initializeApp();
   }
 
@@ -61,9 +61,20 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
   }
 
   Future<void> _initializeApp() async {
-    await _refreshPlants();
+    final prefs = await SharedPreferences.getInstance();
+    final bool hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
     await Future.delayed(const Duration(seconds: 2));
-    if (mounted) setState(() => _showSplash = false);
+    if (!mounted) return;
+    if (hasSeenOnboarding) {
+      setState(() => _showSplash = false);
+      _refreshPlants();
+    } else {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const OnboardingPage()),
+        );
+      }
+    }
   }
 
   Future<void> _refreshPlants() async {
@@ -74,6 +85,157 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
       final allPlants = await DatabaseService.instance.getAllPlants();
       setState(() => _plantHistory = allPlants);
     }
+  }
+  
+  void changePage(int index) {
+    setState(() {
+      _pageIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showSplash) {
+      return Scaffold(
+        backgroundColor: Colors.white, 
+        body: Center(child: Image.asset('assets/images/logo.png'))
+      );
+    }
+    
+    final pages = [
+      MyPlantsPage(plantHistory: _plantHistory, onPlantsUpdated: _refreshPlants, shellState: this),
+      IdentifyPage(
+        selectedImage: _selectedImage,
+        plantInfo: _plantInfo,
+        isLoading: _isLoading,
+        predictions: _predictions,
+        selectedPredictionIndex: _selectedPredictionIndex,
+        onPredictionSelected: (index) => setState(() => _selectedPredictionIndex = index),
+        onClear: () => setState(() {
+          _selectedImage = null; _predictions = [];
+          _plantInfo = "Tanımam için bana bir bitki göster!";
+        }),
+        onSave: _onSaveButtonPressed,
+      ),
+    ];
+    
+    return Stack(
+      children: [
+        if (_pageIndex == 1 && _selectedImage == null)
+          Positioned.fill(
+            child: Image.asset('assets/images/background.png', fit: BoxFit.cover),
+          ),
+        Scaffold(
+          backgroundColor: _pageIndex == 1 && _selectedImage == null
+              ? Colors.transparent
+              : Theme.of(context).scaffoldBackgroundColor,
+          extendBody: true,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leadingWidth: 110,
+            leading: _pageIndex == 1
+                ? _buildFlashingTextBubble(onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatbotPage()));
+                  })
+                : null,
+            title: Text(
+              _pageIndex == 0 ? 'Bitkilerim' : 'Bitki Tanımla',
+              style: TextStyle(
+                color: _pageIndex == 1 && _selectedImage == null
+                    ? Colors.white
+                    : Theme.of(context).appBarTheme.titleTextStyle?.color,
+              ),
+            ),
+            actions: [
+              if (_pageIndex == 1 && _predictions.isNotEmpty)
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline_rounded, size: 30),
+                  tooltip: 'Koleksiyona Kaydet',
+                  onPressed: _onSaveButtonPressed,
+                ),
+              IconButton(
+                icon: const Icon(Icons.settings_rounded, size: 28, color: Color(0xFF607D8B)),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage())),
+              ),
+            ],
+          ),
+          body: IndexedStack(index: _pageIndex, children: pages),
+          bottomNavigationBar: _buildCustomBottomNav(),
+        ),
+      ],
+    );
+  }
+ 
+  Widget _buildCustomBottomNav() {
+    return Container(
+      height: 85,
+      color: Colors.transparent,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0, right: 0, bottom: 0,
+            child: Container(
+              height: 65,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(25),
+                  topRight: Radius.circular(25),
+                ),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withAlpha(26), blurRadius: 10, offset: const Offset(0, -5)),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _NavIcon(
+                    icon: Icons.grass_rounded,
+                    label: 'Bitkilerim',
+                    isSelected: _pageIndex == 0,
+                    onTap: () => setState(() => _pageIndex = 0),
+                  ),
+                  const SizedBox(width: 60),
+                  _NavIcon(
+                    icon: Icons.photo_library_rounded,
+                    label: 'Galeri',
+                    isSelected: _pageIndex == 1,
+                    onTap: () => _pickImageAndIdentify(ImageSource.gallery),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: MediaQuery.of(context).size.width / 2 - 35,
+            child: GestureDetector(
+              onTap: () => _pickImageAndIdentify(ImageSource.camera),
+              child: Container(
+                width: 70, height: 70,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.primaryGreen,
+                  boxShadow: [
+                    BoxShadow(color: AppTheme.primaryGreen.withAlpha(123), blurRadius: 10, spreadRadius: 2),
+                  ],
+                  border: Border.all(color: Colors.white, width: 4),
+                ),
+                child: const Icon(Icons.local_florist_rounded, color: Colors.white, size: 35),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickImageAndIdentify(ImageSource source) async {
+    setState(() { _pageIndex = 1; });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _processImageIdentification(source);
+    });
   }
 
   List<PlantPrediction> _parsePredictions(String rawText) {
@@ -104,18 +266,7 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
     }
     return predictions;
   }
-  
-  Future<void> _pickImageAndIdentify(ImageSource source) async {
-    if (_pageIndex != 1) {
-      setState(() {
-        _pageIndex = 1;
-      });
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _processImageIdentification(source);
-    });
-  }
-
+ 
   Future<void> _processImageIdentification(ImageSource source) async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
@@ -316,160 +467,8 @@ class _MainScreenShellState extends State<MainScreenShell> with SingleTickerProv
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_showSplash) {
-      return Scaffold(backgroundColor: Colors.white, body: Center(child: Image.asset('assets/images/logo.png')));
-    }
-    
-    final pages = [
-      MyPlantsPage(plantHistory: _plantHistory, onPlantsUpdated: _refreshPlants),
-      HomeScreen(
-        selectedImage: _selectedImage,
-        plantInfo: _plantInfo,
-        isLoading: _isLoading,
-        predictions: _predictions,
-        selectedPredictionIndex: _selectedPredictionIndex,
-        onPredictionSelected: (index) => setState(() => _selectedPredictionIndex = index),
-        onClear: () => setState(() {
-          _selectedImage = null; _predictions = [];
-          _plantInfo = "Tanımam için bana bir bitki göster!";
-        }),
-        onSave: _onSaveButtonPressed,
-      ),
-    ];
-    
-    return Stack(
-      children: [
-        if (_pageIndex == 1 && _selectedImage == null)
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/background.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-        Scaffold(
-          backgroundColor: _pageIndex == 1 && _selectedImage == null
-              ? Colors.transparent
-              : Theme.of(context).scaffoldBackgroundColor,
-          extendBody: true, // Body'nin BottomAppBar'ın arkasına uzanmasını sağlar
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leadingWidth: 110,
-            leading: _pageIndex == 1
-                ? _buildFlashingTextBubble(onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const ChatbotPage()));
-                  })
-                : null,
-            title: Text(
-              _pageIndex == 0 ? 'Bitkilerim' : 'Bitki Tanımla',
-              style: TextStyle(
-                color: _pageIndex == 1 && _selectedImage == null
-                    ? Colors.white
-                    : Theme.of(context).appBarTheme.titleTextStyle?.color,
-              ),
-            ),
-            actions: [
-              if (_pageIndex == 1 && _predictions.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline_rounded, size: 30),
-                  tooltip: 'Koleksiyona Kaydet',
-                  onPressed: _onSaveButtonPressed,
-                ),
-              IconButton(
-                icon: const Icon(
-                  Icons.settings_rounded,
-                  size: 28,
-                  color: Color(0xFF607D8B),
-                ),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage())),
-              ),
-            ],
-          ),
-          body: IndexedStack(index: _pageIndex, children: pages),
-          bottomNavigationBar: _buildCustomBottomNav(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCustomBottomNav() {
-    return Container(
-      height: 85,
-      color: Colors.transparent,
-      child: Stack(
-        children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              height: 65,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(25),
-                  topRight: Radius.circular(25),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(26),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _NavIcon(
-                    icon: Icons.grass_rounded,
-                    label: 'Bitkilerim',
-                    isSelected: _pageIndex == 0,
-                    onTap: () => setState(() => _pageIndex = 0),
-                  ),
-                  const SizedBox(width: 60),
-                  _NavIcon(
-                    icon: Icons.photo_library_rounded,
-                    label: 'Galeri',
-                    isSelected: false,
-                    onTap: () => _pickImageAndIdentify(ImageSource.gallery),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            left: MediaQuery.of(context).size.width / 2 - 35,
-            child: GestureDetector(
-              onTap: () => _pickImageAndIdentify(ImageSource.camera),
-              child: Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.primaryGreen,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryGreen.withAlpha(123),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                  border: Border.all(color: Colors.white, width: 4),
-                ),
-                child: const Icon(Icons.local_florist_rounded, color: Colors.white, size: 35),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
 
 class _NavIcon extends StatelessWidget {
   final IconData icon;
@@ -487,7 +486,6 @@ class _NavIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isSelected ? AppTheme.primaryGreen : AppTheme.accentColor.withAlpha(180);
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),

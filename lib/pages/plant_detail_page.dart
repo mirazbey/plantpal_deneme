@@ -1,17 +1,18 @@
-// lib/pages/plant_detail_page.dart (CONTEXT HATASI GİDERİLMİŞ SON HALİ)
+// lib/pages/plant_detail_page.dart (TASARIMA UYGUN NİHAİ KOD)
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart'; // <-- EKSİK IMPORT
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:plantpal/models/journal_entry.dart';
 import 'package:plantpal/models/plant_record.dart';
-import 'package:plantpal/pages/photo_viewer_page.dart';
 import 'package:plantpal/services/database_service.dart';
 import 'package:plantpal/widgets/info_card.dart';
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:plantpal/models/reminder.dart';
 import 'package:plantpal/alarm_callback.dart';
+import 'package:plantpal/theme/app_theme.dart'; // <-- EKSİK IMPORT
 
 class PlantDetailPage extends StatefulWidget {
   final PlantRecord record;
@@ -21,13 +22,26 @@ class PlantDetailPage extends StatefulWidget {
   State<PlantDetailPage> createState() => _PlantDetailPageState();
 }
 
-class _PlantDetailPageState extends State<PlantDetailPage> {
+class _PlantDetailPageState extends State<PlantDetailPage> with SingleTickerProviderStateMixin {
   late Future<List<JournalEntry>> _journalEntriesFuture;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this, initialIndex: 1); // Başlangıç sekmesi "Genel Bilgi"
+    // Tab'ın değişimini dinlemek için listener ekliyoruz
+    _tabController.addListener(() {
+      setState(() {}); // FAB'ın görünürlüğünü güncellemek için
+    });
     _refreshJournal();
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(() {});
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _refreshJournal() {
@@ -35,6 +49,180 @@ class _PlantDetailPageState extends State<PlantDetailPage> {
       _journalEntriesFuture =
           DatabaseService.instance.getJournalEntries(widget.record.id);
     });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 300.0,
+            pinned: true,
+            backgroundColor: AppTheme.primaryGreen,
+            leading: const BackButton(color: Colors.white),
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                widget.record.nickname,
+                style: GoogleFonts.montserrat(fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              background: Hero(
+                tag: 'plant_image_${widget.record.id}',
+                child: Image.file(
+                  widget.record.image,
+                  fit: BoxFit.cover,
+                  color: Colors.black.withAlpha(80),
+                  colorBlendMode: BlendMode.darken,
+                ),
+              ),
+            ),
+             actions: [
+              IconButton(
+                icon: const Icon(Icons.alarm_add_rounded, color: Colors.white),
+                tooltip: 'Hatırlatıcı Kur',
+                onPressed: () => _scheduleAlarm(widget.record),
+              ),
+            ],
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: _buildWateringInfoCard(),
+            ),
+          ),
+          SliverPersistentHeader(
+            delegate: _SliverAppBarDelegate(
+              TabBar(
+                controller: _tabController,
+                labelColor: AppTheme.primaryText,
+                unselectedLabelColor: AppTheme.secondaryText,
+                indicatorColor: AppTheme.primaryGreen,
+                indicatorWeight: 3.0,
+                tabs: const [
+                  Tab(text: 'Bakım Rehberi'),
+                  Tab(text: 'Genel Bilgi'),
+                  Tab(text: 'Geçmiş'),
+                ],
+              ),
+            ),
+            pinned: true,
+          ),
+          SliverFillRemaining(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildCareGuideTab(),
+                _buildGeneralInfoTab(),
+                _buildJournalTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: _tabController.index == 2 ? FloatingActionButton.extended(
+        onPressed: _showAddJournalEntryDialog,
+        icon: const Icon(Icons.add_comment_outlined),
+        label: const Text("Kayıt Ekle"),
+      ) : null,
+    );
+  }
+
+  Widget _buildCareGuideTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          InfoCard(icon: Icons.water_drop_rounded, title: "Sulama", content: widget.record.plantInfo['Sulama Sıklığı'] ?? 'Bilgi Yok'),
+          InfoCard(icon: Icons.wb_sunny_rounded, title: "Işık İhtiyacı", content: widget.record.plantInfo['Işık İhtiyacı'] ?? 'Bilgi Yok'),
+          if(widget.record.plantInfo['Tedavi Önerisi'] != null && widget.record.plantInfo['Tedavi Önerisi']!.isNotEmpty)
+            InfoCard(icon: Icons.healing_rounded, title: "Tedavi Önerisi", content: widget.record.plantInfo['Tedavi Önerisi']!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGeneralInfoTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          InfoCard(icon: Icons.eco_rounded, title: 'Bitki Adı', content: widget.record.plantInfo['Bitki Adı'] ?? 'Bilgi Yok'),
+          InfoCard(icon: Icons.favorite_border_rounded, title: 'Sağlık Durumu', content: widget.record.plantInfo['Sağlık Durumu'] ?? 'Bilgi Yok'),
+          InfoCard(icon: Icons.info_outline_rounded, title: 'Günün Tavsiyesi', content: widget.record.plantInfo['Günün Tavsiyesi'] ?? 'Bilgi Yok'),
+        ]
+      ),
+    );
+  }
+
+  Widget _buildJournalTab() {
+    return FutureBuilder<List<JournalEntry>>(
+      future: _journalEntriesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Text('Henüz bir günlük kaydı eklenmemiş.'),
+            ),
+          );
+        }
+        final entries = snapshot.data!;
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: entries.length,
+          itemBuilder: (context, index) {
+            final entry = entries[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(DateFormat.yMMMMd('tr_TR').format(entry.date),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    if (entry.image != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(entry.image!),
+                        ),
+                      ),
+                    Text(entry.note),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildWateringInfoCard() {
+    return Card(
+      elevation: 2.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+             Icon(Icons.water_drop_outlined, color: AppTheme.accentColor),
+             SizedBox(width: 12),
+             Expanded(child: Text('Sonraki sulama:', style: TextStyle(fontSize: 16))),
+             Text('3 gün sonra', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+             SizedBox(width: 12),
+             Icon(Icons.water, color: Colors.blue),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _showAddJournalEntryDialog() async {
@@ -204,119 +392,21 @@ class _PlantDetailPageState extends State<PlantDetailPage> {
         );
       }
     }
+}
 
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate(this._tabBar);
+  final TabBar _tabBar;
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.record.nickname, style: Theme.of(context).appBarTheme.titleTextStyle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.alarm_add_rounded),
-            tooltip: 'Hatırlatıcı Kur',
-            onPressed: () => _scheduleAlarm(widget.record),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => PhotoViewerPage(imageFile: widget.record.image),
-                  ),
-                );
-              },
-              child: Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withAlpha(25), spreadRadius: 2, blurRadius: 10)
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.file(widget.record.image, fit: BoxFit.cover),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            for (var entry in widget.record.plantInfo.entries)
-              InfoCard(
-                icon: entry.key == 'Bitki Adı' ? Icons.eco_rounded :
-                      entry.key == 'Sağlık Durumu' ? Icons.favorite_rounded :
-                      entry.key == 'Sulama Sıklığı' ? Icons.water_drop_rounded :
-                      entry.key == 'Günün Tavsiyesi' ? Icons.wb_cloudy_rounded :
-                      entry.key == 'Işık İhtiyacı' ? Icons.wb_sunny_rounded :
-                      Icons.info_rounded,
-                title: entry.key,
-                content: entry.value,
-              ),
-            const Padding(
-              padding: EdgeInsets.only(top: 24.0, bottom: 8.0),
-              child: Text('Bakım Günlüğü', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            ),
-            FutureBuilder<List<JournalEntry>>(
-              future: _journalEntriesFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: Text('Henüz bir günlük kaydı eklenmemiş.'),
-                    ),
-                  );
-                }
-                final entries = snapshot.data!;
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: entries.length,
-                  itemBuilder: (context, index) {
-                    final entry = entries[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(DateFormat.yMMMMd('tr_TR').format(entry.date),
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            const SizedBox(height: 8),
-                            if (entry.image != null)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.file(entry.image!),
-                                ),
-                              ),
-                            Text(entry.note),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddJournalEntryDialog,
-        icon: const Icon(Icons.add_comment_outlined),
-        label: const Text("Kayıt Ekle"),
-      ),
-    );
+  double get minExtent => _tabBar.preferredSize.height;
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(color: Colors.white, child: _tabBar);
+  }
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return false;
   }
 }

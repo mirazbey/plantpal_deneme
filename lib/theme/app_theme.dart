@@ -1,51 +1,45 @@
-// lib/theme/app_theme.dart (RENKLER CONST YAPILDI)
+// lib/theme/app_theme.dart (UYARILAR GİDERİLMİŞ HALİ)
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // DÜZELTME: Renkleri const olarak tanımlıyoruz
-  static const Color primaryGreen = Color(0xFF4CAF50);
-  static const Color scaffoldColor = Color(0xFFF9F9F9);
-  static const Color textColor = Color(0xFF293241);
-  static const Color accentColor = Color(0xFF3D5A80);
+  // 'final' yerine 'const' kullanıldı
+  static const Color primaryGreen = Color(0xFF4A6553);
+  static const Color accentColor = Color(0xFF8EAB9B);
+  
+  static const Color primaryText = Color(0xFF212121);
+  static const Color secondaryText = Color(0xFF757575);
 
   static final ThemeData lightTheme = ThemeData(
-    brightness: Brightness.light,
     primaryColor: primaryGreen,
-    scaffoldBackgroundColor: scaffoldColor,
-    appBarTheme: AppBarTheme(
-      backgroundColor: scaffoldColor,
-      elevation: 0,
-      centerTitle: true,
-      titleTextStyle: GoogleFonts.montserrat(
-        color: textColor,
-        fontWeight: FontWeight.bold,
-        fontSize: 22,
-      ),
-      iconTheme: const IconThemeData(color: accentColor),
-    ),
+    scaffoldBackgroundColor: const Color(0xFFF5F5F5),
     cardColor: Colors.white,
-    textTheme: GoogleFonts.montserratTextTheme(ThemeData.light().textTheme)
-        .apply(bodyColor: textColor, displayColor: textColor),
+    appBarTheme: AppBarTheme(
+      elevation: 0,
+      backgroundColor: Colors.transparent,
+      titleTextStyle: GoogleFonts.montserrat(
+        color: primaryText,
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+      ),
+      iconTheme: const IconThemeData( // <-- 'const' eklendi
+        color: primaryText,
+      ),
+    ),
+    textTheme: TextTheme(
+      bodyLarge: GoogleFonts.montserrat(color: primaryText),
+      bodyMedium: GoogleFonts.montserrat(color: secondaryText),
+    ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: primaryGreen,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        textStyle: GoogleFonts.montserrat(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       ),
     ),
-    floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: primaryGreen,
-      foregroundColor: Colors.white,
-    ),
-    iconTheme: const IconThemeData(color: accentColor),
   );
 }
