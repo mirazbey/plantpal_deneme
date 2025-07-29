@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:plantpal/theme/app_theme.dart';
 import 'package:plantpal/pages/article_detail_page.dart';
+import 'package:plantpal/pages/plant_search_page.dart';
 
 class DiscoverPage extends StatelessWidget {
   const DiscoverPage({super.key});
+
+// lib/pages/discover_page.dart -> SADECE build metodunu değiştirin
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +18,8 @@ class DiscoverPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(0), // Üstteki boşluğu sıfırla
       children: [
-        _buildSearchBar(),
+        // --- DÜZELTME BURADA ---
+        _buildSearchBar(context), // <-- Fonksiyona context'i gönderiyoruz
         const SizedBox(height: 24),
         _buildSectionTitle('Öne Çıkanlar'),
         const SizedBox(height: 16),
@@ -27,31 +31,47 @@ class DiscoverPage extends StatelessWidget {
         const SizedBox(height: 24),
         _buildSectionTitle('Bakım Rehberleri'),
         const SizedBox(height: 16),
-        _buildArticleCard(context), // <-- 'context' parametresini buradan gönderiyoruz
+        _buildArticleCard(context),
         const SizedBox(height: 24),
       ],
     );
   }
 
   // Arama çubuğunu oluşturan yardımcı fonksiyon
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: TextField(
-        decoration: InputDecoration(
-          hintText: 'Bitki veya konu ara...',
-          prefixIcon: const Icon(Icons.search, color: AppTheme.secondaryText),
-          filled: true,
-          fillColor: Colors.grey.shade200,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(30.0),
-            borderSide: BorderSide.none,
-          ),
+// lib/pages/discover_page.dart -> BU FONKSİYONU GÜNCELLEYİN
+
+Widget _buildSearchBar(BuildContext context) { // <-- context parametresi eklendi
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+    child: GestureDetector(
+      onTap: () {
+        // Yeni arama sayfasını aç
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const PlantSearchPage()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 15.0),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(30.0),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search, color: AppTheme.secondaryText),
+            const SizedBox(width: 8),
+            Text(
+              'Bitki veya konu ara...',
+              style: GoogleFonts.montserrat(color: AppTheme.secondaryText, fontSize: 16),
+            ),
+          ],
         ),
       ),
-    );
-  }
-  
+    ),
+  );
+}
+
   // Kategori başlıklarını oluşturan yardımcı fonksiyon
   Widget _buildSectionTitle(String title) {
      return Padding(
