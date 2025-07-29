@@ -1,25 +1,54 @@
-// lib/pages/discover_page.dart (TASARIMA UYGUN, İÇERİK DOLU HALİ)
+// lib/pages/discover_page.dart (TAM VE DİNAMİK FİNAL SÜRÜM)
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:iconsax/iconsax.dart';
+import 'package:plantpal/models/article_model.dart';
+import 'package:plantpal/pages/plant_search_page.dart';
+import 'package:plantpal/services/discover_data_service.dart';
+import 'package:plantpal/services/image_search_service.dart';
 import 'package:plantpal/theme/app_theme.dart';
 import 'package:plantpal/pages/article_detail_page.dart';
-import 'package:plantpal/pages/plant_search_page.dart';
 
-class DiscoverPage extends StatelessWidget {
+class DiscoverPage extends StatefulWidget {
   const DiscoverPage({super.key});
 
-// lib/pages/discover_page.dart -> SADECE build metodunu değiştirin
+  @override
+  State<DiscoverPage> createState() => _DiscoverPageState();
+}
+
+class _DiscoverPageState extends State<DiscoverPage> {
+  late List<PlantSearchResult> _popularPlants;
+  late List<Article> _articles;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDiscoverData();
+  }
+
+  void _loadDiscoverData() {
+    // Servisten verileri çekiyoruz
+    _popularPlants = DiscoverDataService.getPopularPlants();
+    _articles = DiscoverDataService.getArticles();
+    
+    // Veriler yüklendi, yükleme animasyonunu kapat
+    setState(() {
+      _isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Scaffold ve AppBar'ı kaldırıyoruz çünkü MainScreenShell bunu sağlıyor.
-    // Sayfanın kendisi kaydırılabilir olmalı, bu yüzden ListView kullanıyoruz.
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return ListView(
-      padding: const EdgeInsets.all(0), // Üstteki boşluğu sıfırla
+      padding: EdgeInsets.zero,
       children: [
-        // --- DÜZELTME BURADA ---
-        _buildSearchBar(context), // <-- Fonksiyona context'i gönderiyoruz
+        _buildSearchBar(context),
         const SizedBox(height: 24),
         _buildSectionTitle('Öne Çıkanlar'),
         const SizedBox(height: 16),
@@ -31,50 +60,49 @@ class DiscoverPage extends StatelessWidget {
         const SizedBox(height: 24),
         _buildSectionTitle('Bakım Rehberleri'),
         const SizedBox(height: 16),
-        _buildArticleCard(context),
+        // DİKKAT: Eski `_buildArticleCard` yerine `_buildArticleList` geldi.
+        _buildArticleList(),
         const SizedBox(height: 24),
       ],
     );
   }
 
-  // Arama çubuğunu oluşturan yardımcı fonksiyon
-// lib/pages/discover_page.dart -> BU FONKSİYONU GÜNCELLEYİN
-
-Widget _buildSearchBar(BuildContext context) { // <-- context parametresi eklendi
-  return Padding(
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-    child: GestureDetector(
-      onTap: () {
-        // Yeni arama sayfasını aç
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const PlantSearchPage()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 15.0),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade200,
-          borderRadius: BorderRadius.circular(30.0),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.search, color: AppTheme.secondaryText),
-            const SizedBox(width: 8),
-            Text(
-              'Bitki veya konu ara...',
-              style: GoogleFonts.montserrat(color: AppTheme.secondaryText, fontSize: 16),
-            ),
-          ],
+  // Arama çubuğu
+  Widget _buildSearchBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PlantSearchPage()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 15.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30.0),
+            border: Border.all(color: Colors.grey.shade300)
+          ),
+          child: Row(
+            children: [
+              const Icon(Iconsax.search_normal_1, color: AppTheme.secondaryText),
+              const SizedBox(width: 8),
+              Text(
+                'Bitki veya konu ara...',
+                style: GoogleFonts.montserrat(color: AppTheme.secondaryText, fontSize: 16),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
-
-  // Kategori başlıklarını oluşturan yardımcı fonksiyon
+    );
+  }
+  
+  // Bölüm başlığı
   Widget _buildSectionTitle(String title) {
-     return Padding(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Text(
         title,
@@ -86,17 +114,17 @@ Widget _buildSearchBar(BuildContext context) { // <-- context parametresi eklend
       ),
     );
   }
-
-  // Öne çıkan banner'ı oluşturan yardımcı fonksiyon
+  
+  // Öne çıkan banner
   Widget _buildFeaturedBanner() {
+    // Bu şimdilik statik kalabilir, ileride bunu da dinamikleştirebiliriz.
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16.0),
       height: 180,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         image: const DecorationImage(
-          // --- BU SATIRI DEĞİŞTİRİN ---
-          image: AssetImage('assets/images/yeni_baslayanlar_banner.png'), // Kendi dosya adınızı yazın
+          image: AssetImage('assets/images/yeni_baslayanlar_banner.png'), // Kendi dosya adını yazın
           fit: BoxFit.cover,
         ),
       ),
@@ -129,86 +157,86 @@ Widget _buildSearchBar(BuildContext context) { // <-- context parametresi eklend
     );
   }
 
-  // Yatay kayan bitki listesini oluşturan yardımcı fonksiyon
-  // lib/pages/discover_page.dart -> BU FONKSİYONU TAMAMEN DEĞİŞTİRİN
+  // Dinamik popüler bitkiler listesi
+  Widget _buildHorizontalPlantList() {
+    final ImageSearchService imageService = ImageSearchService();
 
-Widget _buildHorizontalPlantList() {
-  // Kendi bitki isimlerinizi ve dosya adlarınızı buraya yazın
-  final List<Map<String, String>> popularPlants = [
-    {'name': 'Devetabanı', 'image': 'assets/images/deve_tabani.png'},
-    {'name': 'Paşa Kılıcı', 'image': 'assets/images/pasa_kilici.png'},
-    {'name': 'Orkide', 'image': 'assets/images/orkide.png'},
-    {'name': 'Sukulent', 'image': 'assets/images/sukulent.png'},
-  ];
-
-  return SizedBox(
-    height: 220, // Liste yüksekliği
-    child: ListView.builder(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      itemCount: popularPlants.length,
+    return SizedBox(
+      height: 220,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(left: 16.0),
+        itemCount: _popularPlants.length,
+        itemBuilder: (context, index) {
+          final plant = _popularPlants[index];
+          return Container(
+            width: 150,
+            margin: const EdgeInsets.only(right: 16),
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: FutureBuilder<String?>(
+                      future: imageService.searchImage(plant.imagePath),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data != null) {
+                          return Image.network(
+                            snapshot.data!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          );
+                        }
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      plant.commonName,
+                      style: GoogleFonts.montserrat(fontWeight: FontWeight.bold),
+                    ),
+                  )
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+  
+  // DİNAMİK MAKALE LİSTESİ (ESKİ _buildArticleCard yerine)
+  Widget _buildArticleList() {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _articles.length,
       itemBuilder: (context, index) {
-        final plant = popularPlants[index];
-        return Container(
-          width: 150, // Kart genişliği
-          margin: EdgeInsets.only(right: index == popularPlants.length - 1 ? 0 : 16),
+        final article = _articles[index];
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Card(
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Image.asset(
-                    plant['image']!, // Görseli listeden al
-                    fit: BoxFit.cover,
-                    width: double.infinity,
+            child: ListTile(
+              leading: const Icon(Iconsax.document_text, color: AppTheme.primaryGreen),
+              title: Text(article.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(article.subtitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ArticleDetailPage(article: article),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    plant['name']!, // İsmi listeden al
-                     style: GoogleFonts.montserrat(fontWeight: FontWeight.bold),
-                  ),
-                )
-              ],
+                );
+              },
             ),
           ),
         );
       },
-    ),
-  );
-}
-  
-  // Bakım rehberi kartını oluşturan yardımcı fonksiyon
-  // --- DEĞİŞİKLİK 2: Fonksiyonun artık bir context parametresi almasını sağlıyoruz ---
-  Widget _buildArticleCard(BuildContext context) { // <-- 'context' parametresini burada alıyoruz
-    return Container(
-       margin: const EdgeInsets.symmetric(horizontal: 16.0),
-       decoration: BoxDecoration(
-         color: Colors.white,
-         borderRadius: BorderRadius.circular(12),
-         boxShadow: [
-           BoxShadow(
-             color: Colors.grey.withAlpha(52),
-             spreadRadius: 2,
-             blurRadius: 5,
-           )
-         ]
-       ),
-       child: ListTile(
-         leading: const Icon(Icons.article_outlined, color: AppTheme.primaryGreen),
-         title: Text('Yapraklar Neden Sararır?', style: GoogleFonts.montserrat(fontWeight: FontWeight.bold)),
-         subtitle: const Text('En yaygın sebepler ve çözümleri'),
-         trailing: const Icon(Icons.chevron_right),
-         onTap: () {
-            Navigator.push(
-             context, // <-- Artık 'context' burada tanımlı ve geçerli
-             MaterialPageRoute(builder: (context) => const ArticleDetailPage()),
-           );
-         },
-       ),
     );
   }
 }

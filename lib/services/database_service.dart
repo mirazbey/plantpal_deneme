@@ -1,5 +1,4 @@
 // lib/services/database_service.dart (VERİTABANI VERSİYON 3)
-
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -74,6 +73,17 @@ class DatabaseService {
         intervalDays INTEGER NOT NULL DEFAULT 0
       )
     ''');
+
+      await db.execute('''
+    CREATE TABLE journal (
+      id TEXT PRIMARY KEY,
+      plantId TEXT,
+      date TEXT,
+      note TEXT,
+      imagePath TEXT,
+      type TEXT
+    )
+  ''');
   }
   
   // ... (_createJournalTable ve diğer fonksiyonlar aynı)
@@ -232,5 +242,23 @@ class DatabaseService {
     final db = await instance.database;
     db.close();
   }
+  
+  // lib/services/database_service.dart dosyasının en altındaki bu fonksiyonu değiştir
+
+Future<List<JournalEntry>> getAllJournalEntries() async {
+  final db = await instance.database;
+
+  // HATA DÜZELTMESİ: Sorgu, doğru tablo olan 'journal_entries'e yapılıyor.
+  final List<Map<String, dynamic>> maps = await db.query('journal_entries', orderBy: 'date DESC');
+
+  debugPrint("[DatabaseService] getAllJournalEntries fonksiyonu çalıştı. Bulunan toplam kayıt: ${maps.length}");
+
+  if (maps.isEmpty) {
+    return [];
+  }
+
+  // İYİLEŞTİRME: Kodun geri kalanıyla tutarlı olması için modelin kendi 'fromMap' metodunu kullanıyoruz.
+  return maps.map((json) => JournalEntry.fromMap(json)).toList();
+}
 
 }

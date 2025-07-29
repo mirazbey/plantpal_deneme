@@ -1,52 +1,67 @@
-// lib/pages/article_detail_page.dart (YENİ SAYFA KODU)
+// lib/pages/article_detail_page.dart (DİNAMİK HALE GETİRİLMİŞ FİNAL KOD)
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:plantpal/models/article_model.dart'; // Modelimizi import ediyoruz
+import 'package:plantpal/services/image_search_service.dart'; // Unsplash servisini kullanacağız
 import 'package:plantpal/theme/app_theme.dart';
 
 class ArticleDetailPage extends StatelessWidget {
-  const ArticleDetailPage({super.key});
+  // DÜZELTME: Bu sayfa artık hangi makaleyi göstereceğini parametre olarak alıyor.
+  final Article article;
+  final ImageSearchService _imageService = ImageSearchService();
+
+  ArticleDetailPage({super.key, required this.article});
 
   @override
   Widget build(BuildContext context) {
-    // Sayfanın iskeleti, kaydırılabilir bir yapıya sahip
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // Üstteki kaybolan başlık ve görsel alanı
           SliverAppBar(
-            expandedHeight: 250.0, // Görselin yüksekliği
+            expandedHeight: 250.0,
             pinned: true,
             stretch: true,
             backgroundColor: AppTheme.primaryGreen,
             flexibleSpace: FlexibleSpaceBar(
               title: Text(
-                'Yapraklar Neden Sararır?',
+                // DÜZELTME: Başlık artık dinamik olarak 'article' objesinden geliyor.
+                article.title,
                 style: GoogleFonts.montserrat(
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                   fontSize: 16,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              background: Image.asset(
-                // Bu görseli projenize eklemeniz gerekecek
-                'assets/images/yellow_leaves_banner.png', 
-                fit: BoxFit.cover,
-                color: Colors.black.withAlpha(80),
-                colorBlendMode: BlendMode.darken,
+              background: FutureBuilder<String?>(
+                // DÜZELTME: Görseli Unsplash'ten dinamik olarak çekiyoruz.
+                future: _imageService.searchImage(article.imagePath),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return Image.network(
+                      snapshot.data!,
+                      fit: BoxFit.cover,
+                      color: Colors.black.withAlpha(80),
+                      colorBlendMode: BlendMode.darken,
+                    );
+                  }
+                  // Yüklenirken veya hata durumunda gri bir arka plan göster
+                  return Container(color: Colors.grey.shade700);
+                },
               ),
             ),
           ),
-          // Sayfanın geri kalan, kaydırılabilir içeriği
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Ana Başlık
                   Text(
-                    'Yaprak Sararmasının Yaygın Sebepleri',
+                    // DÜZELTME: Başlık yine dinamik olarak geliyor.
+                    article.title,
                     style: GoogleFonts.montserrat(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -54,24 +69,24 @@ class ArticleDetailPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Meta Bilgi
                   const Row(
                     children: [
                       Icon(Icons.timer_outlined, size: 16, color: AppTheme.secondaryText),
                       SizedBox(width: 4),
                       Text(
-                        'Okuma Süresi: 3 dakika',
+                        'Okuma Süresi: 3 dakika', // Bu şimdilik statik kalabilir
                         style: TextStyle(color: AppTheme.secondaryText),
                       ),
                     ],
                   ),
                   const Divider(height: 32),
-                  // Makale Metni
                   Text(
-                    'Bitki yapraklarının sararması, genellikle "kloroz" olarak adlandırılır ve bitkinin size bir şeylerin yolunda gitmediğini söyleme şeklidir. En yaygın nedenlerden biri aşırı sulamadır.\n\nKökler sürekli su içinde kaldığında yeterli oksijen alamaz ve çürümeye başlayabilir. Bu da bitkinin topraktan besin almasını engeller ve yapraklar sararır.\n\nDiğer bir yaygın neden ise besin eksikliğidir. Özellikle nitrojen eksikliği, eski ve alttaki yapraklarda sararmaya yol açar. Bitkinizin toprağı eskidiyse veya uzun süredir gübreleme yapmadıysanız, bu durumla karşılaşabilirsiniz. Işık eksikliği veya tam tersi, doğrudan yakıcı güneşe maruz kalmak da yapraklarda strese ve renk değişimine neden olabilir.',
+                    // DÜZELTME: Makale metni, alt başlıktan yola çıkarak genel bir metinle dolduruldu.
+                    // İleride bu metni de 'Article' modeline ekleyebilirsin.
+                    '${article.subtitle}. Bitki yapraklarının sararması, genellikle "kloroz" olarak adlandırılır ve bitkinin size bir şeylerin yolunda gitmediğini söyleme şeklidir. En yaygın nedenlerden biri aşırı sulamadır...\n\nKökler sürekli su içinde kaldığında yeterli oksijen alamaz ve çürümeye başlayabilir. Bu da bitkinin topraktan besin almasını engeller ve yapraklar sararır.',
                     style: GoogleFonts.montserrat(
                       fontSize: 16,
-                      height: 1.7, // Satır aralığı
+                      height: 1.7,
                       color: AppTheme.primaryText,
                     ),
                   ),

@@ -1,4 +1,4 @@
-// lib/pages/onboarding_page.dart (YENİ VE GÖRSELE UYUMLU HALİ)
+// lib/pages/onboarding_page.dart (TABLET UYUMLU, DUYARLI FİNAL KOD)
 
 import 'package:flutter/material.dart';
 import 'package:plantpal/main_screen_shell.dart';
@@ -20,22 +20,18 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  // Tanıtım tamamlandığında çalışacak fonksiyon
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('hasSeenOnboarding', true); // Görüldü olarak işaretle
+    await prefs.setBool('hasSeenOnboarding', true);
     if (mounted) {
-      // Ana ekrana geç ve geri dönmeyi engelle
-      // YENİ, DOĞRU HALİ:
       Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainScreenShell()),
+        MaterialPageRoute(builder: (_) => const MainScreenShell()),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Görsellerin listesi
     final List<String> imagePaths = [
       'assets/images/2.jpg',
       'assets/images/3.jpg',
@@ -44,65 +40,67 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: PageView.builder(
-        controller: _pageController,
-        itemCount: imagePaths.length,
-        itemBuilder: (context, index) {
-          // Her bir sayfa için tıklama alanları ile birlikte bir katman oluşturuyoruz
-          return Stack(
-            fit: StackFit.expand, // Stack'in tüm ekranı kaplamasını sağla
-            children: [
-              // 1. Katman: Arka plan görseli
-              Image.asset(
-                imagePaths[index],
-                fit: BoxFit.contain, // Görselin oranını bozmadan sığdır
-              ),
+      // DÜZELTME: LayoutBuilder ile ekran boyutlarını alıyoruz
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenHeight = constraints.maxHeight;
+          final screenWidth = constraints.maxWidth;
 
-              // 2. Katman: Görünmez Tıklama Alanları
-              
-              // Eğer son sayfa değilse ("İleri" butonu olanlar)
-              if (index < imagePaths.length - 1)
-                Positioned(
-                  bottom: 110, // Görseldeki "ileri" yazısının yaklaşık konumu (dikey)
-                  right: 20,  // Görseldeki "ileri" yazısının yaklaşık konumu (yatay)
-                  child: GestureDetector(
-                    onTap: () {
-                      _pageController.nextPage(
-                        duration: const Duration(milliseconds: 400),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                    child: Container(
-                      // Görünmez tıklama alanının boyutu
-                      width: 100, 
-                      height: 50,
-                      color: Colors.red.withAlpha(0), // Alanı tamamen görünmez yap
-                    ),
+          return PageView.builder(
+            controller: _pageController,
+            itemCount: imagePaths.length,
+            itemBuilder: (context, index) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    imagePaths[index],
+                    fit: BoxFit.contain,
                   ),
-                ),
-
-              // Eğer son sayfaysa ("Hadi Başlayalım" butonu olan)
-              if (index == imagePaths.length - 1)
-                Positioned(
-                  // Görseldeki butonun yaklaşık konumunu ve boyutunu ayarlıyoruz
-                  // Bunu kendi ekranına göre hassas bir şekilde ayarlayabilirsin.
-                  bottom: MediaQuery.of(context).size.height * 0.20, // Ekranın altından %15 yukarıda
-                  left: MediaQuery.of(context).size.width * 0.1,    // Ekranın solundan %10 içeride
-                  right: MediaQuery.of(context).size.width * 0.1,   // Ekranın sağından %10 içeride
-                  child: GestureDetector(
-                    onTap: _completeOnboarding,
-                    child: Container(
-                      height: 60, // Butonun yaklaşık yüksekliği
-                      decoration: BoxDecoration(
-                        color: Colors.red.withAlpha(0), // Alanı tamamen görünmez yap
-                        borderRadius: BorderRadius.circular(12), // İsteğe bağlı, tıklama alanını yuvarlak yapmak için
+                  
+                  // Eğer son sayfa değilse ("İleri" butonu)
+                  if (index < imagePaths.length - 1)
+                    Positioned(
+                      // DÜZELTME: Sabit '110' yerine ekran yüksekliğinin yüzdesi
+                      bottom: screenHeight * 0.15, // Ekranın altından %15 yukarıda
+                      // DÜZELTME: Sabit '20' yerine ekran genişliğinin yüzdesi
+                      right: screenWidth * 0.05,  // Ekranın sağından %5 içeride
+                      child: GestureDetector(
+                        onTap: () {
+                          _pageController.nextPage(
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                        child: Container(
+                          // Boyutları da ekran genişliğine göre ayarlayabiliriz
+                          width: screenWidth * 0.25, // Genişliğin %25'i kadar
+                          height: screenHeight * 0.07, // Yüksekliğin %7'si kadar
+                          color: Colors.transparent, // Tamamen görünmez yap
+                        ),
                       ),
                     ),
-                  ),
-                ),
-            ],
+
+                  // Eğer son sayfaysa ("Hadi Başlayalım" butonu)
+                  if (index == imagePaths.length - 1)
+                    Positioned(
+                      // Bu kısımdaki yüzdesel kullanımın zaten doğruydu, koruyoruz.
+                      bottom: screenHeight * 0.15,
+                      left: screenWidth * 0.1,
+                      right: screenWidth * 0.1,
+                      child: GestureDetector(
+                        onTap: _completeOnboarding,
+                        child: Container(
+                          height: screenHeight * 0.08, // Yüksekliği de yüzdesel yapalım
+                          color: Colors.transparent,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           );
-        },
+        }
       ),
     );
   }
