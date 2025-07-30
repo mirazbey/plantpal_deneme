@@ -47,7 +47,9 @@ dependencies:
   table_calendar: ^3.1.2
   iconsax: ^0.0.8 
   video_player: ^2.8.2
-
+  camera: ^0.10.5+9 # En güncel sürümü kontrol edebilirsiniz
+  syncfusion_flutter_gauges: ^26.1.35
+  light_sensor: ^3.0.0
 
 dev_dependencies:
   flutter_test:

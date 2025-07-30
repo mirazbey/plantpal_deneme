@@ -10,8 +10,8 @@ plugins {
 
 android {
     namespace = "com.example.plantpal"
-    compileSdk = 35
-
+    compileSdk = 36
+    
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
